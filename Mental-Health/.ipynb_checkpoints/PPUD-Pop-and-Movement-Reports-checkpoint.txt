@@ -1,0 +1,23 @@
+The PPUD reports used for population reconstruction and movements after 31 Dec have the common logical set up below:
+
+1 (       
+2  DA Status = Active                     AND    
+3  (       
+4   Date of Hospital Order <= 31 Dec 2023  OR    
+5   (       
+6    Date of Hospital Order IS NULL N/A   AND    
+7    Date Received in MHU <= 31 Dec 2023  AND    
+8   )       AND    
+9  )        AND    
+10 )         OR
+
+11 (       
+12  DA Status != Active                   AND    
+13  (       
+14   End Date > 31 Dec 2023                OR    
+15   (       
+16    End Date IS NULL N/A                AND    
+17    Expiry Date > 31 Dec 2023           AND    
+18   )                                    AND    
+19  )                                     AND    
+20 )                                      AND
