@@ -48,9 +48,9 @@ pd.set_option('display.max_colwidth', None)
 #---------------------------------- Load GPP data
 
 year = 2024
-quarter = 1
+quarter = 2
 
-pop = pd.read_parquet(f"s3://alpha-omppg/ISP Population/final-data/isp_pop_{year}q{quarter}.parquet")
+pop = pd.read_parquet(f"s3://alpha-omppg/isp-population/final/isp_pop_{year}q{quarter}.parquet")
 
 unreleased_ipps = pop[pop['ISP_STATUS'] == 'Unreleased IPP']
 
