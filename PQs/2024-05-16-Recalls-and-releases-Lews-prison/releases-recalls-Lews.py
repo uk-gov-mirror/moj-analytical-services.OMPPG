@@ -117,6 +117,11 @@ matched = matched.sort_values(['NOMS_NO','MONTH'])
 matched = matched.drop_duplicates(['NOMS_NO','MONTH'])   # remove duplicate prison number and licence revoke date
 len(matched2) # 97
 
+# Deduplicated by Noms and MONTH
+matched = matched.sort_values(['NOMS_NO','MOVEMENT_DATE'])
+
+matched = matched.drop_duplicates(['NOMS_NO','MONTH'])   # remove duplicate prison number and licence revoke date
+len(matched2) # 97
 # Tabulate
 pd.pivot_table(matched,
                index='MONTH',

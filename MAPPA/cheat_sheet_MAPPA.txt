@@ -1,0 +1,21 @@
+os.listdir(<folder_name>)
+os.path.join(<fodler_name>, <file_name>)
+
+list.remove()
+list.append()
+
+str.endswith(<str>)
+str.upper()
+
+pd.concat()
+pd.columns
+pd.rename(columns={})
+pd.sort_values()
+pd.fillna(value = 0)
+pd.groupby()
+pd.merge()
+
+series.astype()
+series.map(dict)
+series.index[<number>]
+series.fillna(value = 0)

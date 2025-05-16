@@ -1,33 +1,44 @@
 import pandas as pd
 import numpy as np
-import s3fs
+
+pd.options.display.max_columns = None
+pd.options.display.max_rows = None
+pd.set_option('display.max_colwidth', None)
+
+# Ensures no wrapping of cell contents - run it separately
+
+%%html
+<style>
+.dataframe td {
+    white-space: nowrap;
+}
+</style>
+
 
 # IMPORT DATASETS - FIND A BETTER WAY TO LOOP FOR THE IMPORT
-Mar21 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2021q2.sas7bdat", encoding='latin1')
-Jun21 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2021q3.sas7bdat", encoding='latin1')
-Sep21 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2021q4.sas7bdat", encoding='latin1')
-Dec21 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2022q1.sas7bdat", encoding='latin1')
+Jun23= pd.read_sas("s3://alpha-omppg/ISP Population/final-data/isp_pop_2023q3.sas7bdat", encoding='latin1')
+Sep23= pd.read_sas("s3://alpha-omppg/ISP Population/final-data/isp_pop_2023q4.sas7bdat", encoding='latin1')
+Dec23= pd.read_sas("s3://alpha-omppg/ISP Population/final-data/isp_pop_2024q1.sas7bdat", encoding='latin1')
+Mar24= pd.read_parquet("s3://alpha-omppg/ISP Population/final-data/isp_pop_2024q1.parquet")
+Jun24= pd.read_parquet("s3://alpha-omppg/isp-population/final/isp_pop_2024q2.parquet")
 
-Mar22 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2022q2.sas7bdat", encoding='latin1')
-Jun22 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2022q3.sas7bdat", encoding='latin1')
-Sep22 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2022q4.sas7bdat", encoding='latin1')
-Dec22 = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2023q1.sas7bdat", encoding='latin1')
-
-Mar23= pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2023q2.sas7bdat", encoding='latin1')
+Mar24.head()
 
 # CONCATENATE ALL THESE DATASES
-pop_data = pd.concat([Mar21,Jun21,Sep21,Dec21,Mar22,Jun22,Sep22,Dec22,Mar23])
-pop_data.dtypes
+for i in [Jun23,Sep23,Dec23,Mar24,Jun24]:
+    i.columns = i.columns.str.upper()
 
-# CHANGE COLUMNS INTO UPPERCASE
-upperColumns =[i.upper() for i in pop_data.columns]
-pop_data.columns = upperColumns
+pop_data = pd.concat([Jun23,Sep23,Dec23,Mar24,Jun24])
+
 pop_data.head()
 
 # KEEP ONLY NEEDED COLUMNS IN THE ORDER PREFERRED
 colsToKeep = "EXTRACTDATE DOS TARIFF_PAST TARIFF_EXPIRY_DATE LAST_REVIEW_REASON LAST_REVIEW_RESULT LAST_SUBSEQUENT_DATE ISP_STATUS WHOLE_LIFE".split()
+
 pop_out = pop_data[colsToKeep]
+
+pop_out['EXTRACTDATE'].value_counts(dropna=False).sort_index()
 pop_out.head()
 
 # SAVE FINAL DATASET AS EXCEL FILE
-pop_out.to_excel("ISP_POP_2021_2022.xlsx")
+pop_out.to_excel("ISP_POP_June2023_June2024.xlsx")

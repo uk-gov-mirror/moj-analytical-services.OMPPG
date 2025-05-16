@@ -1,0 +1,8 @@
+# Ignore Excel workbooks
+*.xls
+*.xlsx
+*.xlsm
+*.csv
+
+# Ignore Parquet files
+*.parquet

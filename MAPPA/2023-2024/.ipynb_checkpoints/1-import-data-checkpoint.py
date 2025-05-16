@@ -1,21 +1,22 @@
 """ 
-GOAL: PRODUCE RECALL TABLES FOR OMSQ.
-By Eric Nyame, 17/04/2024
+GOAL: PRODUCE DATA FOR MAPPA PUBLICATION.
+By Eric Nyame, 31/07/2024
 """
 
 #---------------------------------- Import Packages
 
 import pandas as pd
-from pandas.api.types import CategoricalDtype
+# from pandas.api.types import CategoricalDtype
 import numpy as np
+import os
 import sys
-import duckdb
-import importlib
+# import duckdb
+# import importlib
 
 # openpyxl
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, Alignment
-from openpyxl.utils import get_column_letter
+# from openpyxl import Workbook, load_workbook
+# from openpyxl.styles import Font, Alignment
+# from openpyxl.utils import get_column_letter
 
 # import re
 
@@ -23,14 +24,14 @@ from openpyxl.utils import get_column_letter
 
 # import my predefined functions, akin to macros in SAS
 
-sys.path.append('/home/jovyan/OMPPG/Macro Library')
+# sys.path.append('/home/jovyan/OMPPG/Macro Library')
 # from my_log import my_log
-import Out_of_bounds_dates
+# import Out_of_bounds_dates
 # import prepareMatch
 # importlib.reload(prepareMatch)
 # import openMatch
 # importlib.reload(openMatch)
-import TimeDiffs
+# import TimeDiffs
 
 # Set display options
 
@@ -51,45 +52,40 @@ pd.set_option('display.max_colwidth', None)
 def strip_blanks(df):
     for col in df.select_dtypes(include='object').columns:
         df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
-
         
         # Period variables
-qtr = 1 # 1:Jan-Mar, 2:Apr-Jun, 3:Jul-Sep, 4:Oct-Dec
-year = 2024 # Enter the year being run in 4 digit format
 
-import os
-import pandas as pd
+# IMPORT DATA FROM SHEET '23-24 data'
 
-# Folder containing the Excel files
-folder_path = 'returns'
+returns_folder = 'returns'
+list_of_file_names = os.listdir(returns_folder)
+list_of_file_names = [name for name in list_of_file_names if name.endswith('.xlsx')]
+list_of_file_names.remove('NSD.xlsx') # exclude NSD for now. Will work on it separately
+len(list_of_file_names) # should be 42 for now without NSD
+
 sheet_name = '23-24 data'
 cols_to_import = 'A:BQ'
 
-# List all files in the folder
-file_list = [f for f in os.listdir(folder_path) if f.endswith('.xlsx') and f != 'NSD.xlsx']
-file_list
-
 # Initialize an empty list to hold the dataframes
-data = []
+list_of_data_frames = []
 
 # Loop through the files and read the specified range
-for file_name in file_list:
-    file_path = os.path.join(folder_path, file_name)
-    # Read the data from the specified sheet and range
-    data_range = pd.read_excel(file_path, sheet_name=sheet_name, usecols=cols_to_import, nrows=2)
-    data.append(data_range)
+for file_name in list_of_file_names:
+    
+    file_path = os.path.join(returns_folder, file_name)
+    data_range = pd.read_excel(file_path, sheet_name = sheet_name, usecols = cols_to_import, nrows=2)
+    list_of_data_frames.append(data_range)
 
 # Append NSD
-file_path = os.path.join(folder_path, 'NSD.xlsx')
+file_path = os.path.join(returns_folder, 'NSD.xlsx')
 data_range = pd.read_excel(file_path, sheet_name=sheet_name, usecols='A:T', nrows=2)
 data_range
-data.append(data_range)
+list_of_data_frames.append(data_range)
 
 # Concatenate all the dataframes into one
-mappa_data = pd.concat(data, ignore_index=True)
+mappa_data = pd.concat(list_of_data_frames, ignore_index=True)
 mappa_data.columns = mappa_data.columns.str.upper()
-mappa_data = mappa_data.rename(columns ={'AREAID':'AREA_ID'})
-mappa_data = mappa_data.sort_values('AREA_ID',ignore_index=True)
+mappa_data = mappa_data.sort_values('AREAID',ignore_index=True)
 
 # Replace NAs with zeros
 mappa_data = mappa_data.fillna(value = 0)
@@ -111,16 +107,16 @@ area_dict = {1:'Avon and Somerset',2:'Bedfordshire',3:'Cambridgeshire',4:'Cheshi
 
 # reorder cols
 
-mappa_data['AREA'] = mappa_data['AREA_ID'].map(area_dict)
+mappa_data['AREA_NAME'] = mappa_data['AREAID'].map(area_dict)
 
-mappa_data = mappa_data[['AREA_ID','AREA'] + [col for col in mappa_data.columns if col not in ['AREA_ID','AREA']]]
+mappa_data = mappa_data[['AREAID','AREA_NAME'] + [col for col in mappa_data.columns if col not in ['AREAID','AREA_NAME']]]
 mappa_data.head()
 
 # Level totals for table 1
 
 mappa_data['LEVEL1TOTT1'] = mappa_data['CAT1L1'] + mappa_data['CAT2L1'] + mappa_data['CAT4L1']
-mappa_data['LEVEL2TOTT1'] = mappa_data['CAT1L2'] + mappa_data['CAT2L2'] + mappa_data['CAT3L2'] + mappa_data['CAT4L2'];
-mappa_data['LEVEL3TOTT1'] = mappa_data['CAT1L3'] + mappa_data['CAT2L3'] + mappa_data['CAT3L3'] + mappa_data['CAT4L3'];
+mappa_data['LEVEL2TOTT1'] = mappa_data['CAT1L2'] + mappa_data['CAT2L2'] + mappa_data['CAT3L2'] + mappa_data['CAT4L2']
+mappa_data['LEVEL3TOTT1'] = mappa_data['CAT1L3'] + mappa_data['CAT2L3'] + mappa_data['CAT3L3'] + mappa_data['CAT4L3']
 
 # mappa_data[['AREAID','AREA_NAME','LEVEL1TOTT1']]
 
@@ -191,8 +187,58 @@ mappa_data['TOTALSCR'] = (mappa_data['CAT1L2SCR'] + mappa_data['CAT1L3SCR'] + ma
 mappa_data['TOTALSCRL2'] = mappa_data['CAT1L2SCR'] + mappa_data['CAT2L2SCR'] + mappa_data['CAT3L2SCR']
 mappa_data['TOTALSCRL3'] = mappa_data['CAT1L3SCR'] + mappa_data['CAT2L3SCR'] + mappa_data['CAT3L3SCR']
 
+# BRING IN IN POPULATION DATA
+"""pop_link = "https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/populationestimatesforukenglandandwalesscotlandandnorthernireland/mid2022/mye22final.xlsx""""
 
-#removes unwanted variables
+pop_link = "https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/estimatesofthepopulationforenglandandwales/mid20232023localauthorityboundarieseditionofthisdataset/mye23tablesew.xlsx"
 
-#drop mappa_data['CAT2L2SOPOBREACH'] mappa_data['CAT3L2SOPOBREACH'] mappa_data['CAT2L3SOPOBREACH'] mappa_data['CAT3L3SOPOBREACH'];
+storage_options = {'User-Agent': 'Mozilla/5.0'} # don't understand but it's needed to import the excel file
+pop_data = pd.read_excel(pop_link, storage_options = storage_options, sheet_name = 'MYE2 - Persons', skiprows = 7)
+pop_data.head()
 
+ten_col_num = pop_data.columns.get_loc('10')
+ten_plus_total = pop_data[pop_data.columns[ten_col_num:]].sum(axis=1)
+pop_data.insert(4,'10+',ten_plus_total)
+
+pop_lookup = pd.read_excel('../lookup-table-uk-authority-codes-2024.xlsx')
+pop_lookup.head()
+
+ons_pop_data = pd.merge(pop_lookup[['LAD24CD','LAD24NM','PFA24CD','PFA24NM','MAPPA_NAME']],
+                        pop_data[['Code','10+']],left_on = 'LAD24CD',right_on ='Code')
+ons_pop_data.head()
+ons_pop_data = ons_pop_data.groupby(['MAPPA_NAME'])['10+'].sum().reset_index()
+
+# CRUCIAL - CHECK THE TOTALS HERE MATCH!!!!!
+
+ons_pop_data['10+'].sum() == pop_data[pop_data['Name'] == 'ENGLAND AND WALES']['10+'].values[0] # 54,117,598
+
+ons_pop_data.head()
+
+mappa_data  =  pd.merge(mappa_data, ons_pop_data,left_on = 'AREA_NAME',right_on ='MAPPA_NAME', how = 'left')
+mappa_data['10+'] = mappa_data['10+'].fillna(value = 0)
+mappa_data['10+'] = mappa_data['10+'].astype('int64')
+
+mappa_data['10+'].sum() # must match the totals above
+
+# this works - calculate rate of RSO per 100,000 head of population
+mappa_data['RSO_POP'] = round(mappa_data['CAT1TOT']*100000/mappa_data['10+'])
+mappa_data['RSO_POP'] = mappa_data['RSO_POP'].fillna(value = 0)
+mappa_data['RSO_POP'] = mappa_data['RSO_POP'].astype('int64')
+
+# this works - round the 10+ population to nearest 100
+mappa_data['NEWPOP'] = round(mappa_data['10+'],-2)
+mappa_data
+
+retain =['AREAID', 'AREA_NAME', 'CAT1L1', 'CAT1L2', 'CAT1L3', 'CAT2L1', 'CAT2L2', 'CAT2L3', 'CAT3L2', 'CAT3L3', 'LEVEL1TOTT1', 'LEVEL2TOTT1', 'LEVEL3TOTT1', 'CAT1TOT', 'CAT2TOT', 'CAT3TOT', 'TOTAL_MAPPA_OFFENDERS', 'NEWPOP', 'RSO_POP', 'CAT1L2YEAR', 'CAT1L3YEAR', 'CAT2L2YEAR', 'CAT2L3YEAR', 'CAT3L2YEAR', 'CAT3L3YEAR', 'CAT1YEAR', 'CAT2YEAR', 'CAT3YEAR', 'LEVEL2TOTT3', 'LEVEL3TOTT3', 'CAT1CAUTCON', 'CAT1L1CAUTCON', 'CAT1L2CAUTCON', 'CAT1L3CAUTCON', 'SOPOGRANT', 'NOGRANT', 'FTOGRANT', 'CAT1L2LICBREACH', 'CAT2L2LICBREACH', 'CAT3L2LICBREACH', 'LEVEL2BREACHT7', 'CAT1L3LICBREACH', 'CAT2L3LICBREACH', 'CAT3L3LICBREACH', 'LEVEL3BREACHT7', 'BREACHTOTALT7', 'CAT1L2SOPOBREACH', 'CAT1L3SOPOBREACH', 'SOPOTOTALT7', 'CAT1L1SFO', 'CAT1L2SFO', 'CAT1L3SFO', 'CAT2L1SFO', 'CAT2L2SFO', 'CAT2L3SFO', 'CAT3L2SFO', 'CAT3L3SFO', 'TOTALSFOCHARGE', 'CAT1L1SFOCONV', 'CAT1L2SFOCONV', 'CAT1L3SFOCONV', 'CAT2L1SFOCONV', 'CAT2L2SFOCONV', 'CAT2L3SFOCONV', 'CAT3L2SFOCONV', 'CAT3L3SFOCONV', 'TOTALSFOCONV', 'CAT1L1SFOCHARGE', 'CAT1L2SFOCHARGE', 'CAT1L3SFOCHARGE', 'CAT2L1SFOCHARGE', 'CAT2L2SFOCHARGE', 'CAT2L3SFOCHARGE', 'CAT3L2SFOCHARGE', 'CAT3L3SFOCHARGE', 'TOTALSFOSTILLCHARGE', 'CAT1L1SFOOTHER', 'CAT1L2SFOOTHER', 'CAT1L3SFOOTHER', 'CAT2L1SFOOTHER', 'CAT2L2SFOTHER', 'CAT2L3SFOOTHER', 'CAT3L2SFOOTHER', 'CAT3L3SFOOTHER', 'TOTALSFOOTHER', 'TOTALSCRL2', 'TOTALSCRL3', 'TOTALSCR', 'SROBREACH', 'RSOREVOKE']
+
+mappa_data2 = mappa_data[retain + [col for col in mappa_data if col not in retain]]
+mappa_data2
+
+mappa_data2.to_excel('Table All Areas Source.xlsx',index=False)
+
+# NSD
+retain2 = ['AREAID', 'AREA_NAME', 'CAT4L1', 'CAT4L2', 'CAT4L3', 'LEVEL1TOTT1', 'LEVEL2TOTT1', 'LEVEL3TOTT1', 'CAT4TOT', 'CAT4L2YEAR', 'CAT4L3YEAR', 'CAT4YEAR', 'LEVEL2TOTT3', 'LEVEL3TOTT3', 'SOPOGRANT', 'NOGRANT', 'FTOGRANT', 'CAT4L2LICBREACH', 'LEVEL2BREACHT7', 'CAT4L3LICBREACH', 'LEVEL3BREACHT7', 'BREACHTOTALT7', 'SOPOTOTALT7', 'CAT4L1SFO', 'CAT4L2SFO', 'CAT4L3SFO', 'TOTALSFOCHARGE', 'CAT4L1SFOCONV', 'CAT4L2SFOCONV', 'CAT4L3SFOCONV', 'TOTALSFOCONV', 'CAT4L1SFOCHARGE', 'CAT4L2SFOCHARGE', 'CAT4L3SFOCHARGE', 'CAT2L1SFOCHARGE', 'TOTALSFOSTILLCHARGE', 'CAT4L1SFOOTHER', 'CAT4L2SFOOTHER', 'CAT4L3SFOOTHER', 'TOTALSFOOTHER', 'TOTALSCRL2', 'TOTALSCRL3', 'TOTALSCR', 'SROBREACH', 'RSOREVOKE']
+
+nsd = mappa_data2[(mappa_data2['AREAID'] == 43)][retain2]
+
+nsd.to_excel('NSD.xlsx',index=False)

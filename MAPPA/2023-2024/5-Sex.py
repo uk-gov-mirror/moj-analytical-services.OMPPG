@@ -1,38 +1,7 @@
 """ 
-GOAL: PRODUCE RECALL TABLES FOR OMSQ.
-By Eric Nyame, 17/04/2024
+GOAL: GET DATA ON SEX DISTRIBUTION FOR MAPPA PUBLICATION.
+By Eric Nyame, 31/07/2024
 """
-
-#---------------------------------- Import Packages
-
-import pandas as pd
-# from pandas.api.types import CategoricalDtype
-import numpy as np
-import sys
-import os
-
-import duckdb
-import importlib
-
-# openpyxl
-# from openpyxl import Workbook, load_workbook
-# from openpyxl.styles import Font, Alignment
-# from openpyxl.utils import get_column_letter
-
-# import re
-
-# from dateutil.relativedelta import relativedelta
-
-# import my predefined functions, akin to macros in SAS
-
-sys.path.append('/home/jovyan/OMPPG/Macro-Library')
-# from my_log import my_log
-import Out_of_bounds_dates
-# import prepareMatch
-# importlib.reload(prepareMatch)
-# import openMatch
-# importlib.reload(openMatch)
-import TimeDiffs
 
 # Set display options
 
@@ -49,31 +18,21 @@ pd.set_option('display.max_colwidth', None)
 }
 </style>
 
-# function to remove trailing and leading blanks
-def strip_blanks(df):
-    for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
-
-        
-        # Period variables
-qtr = 1 # 1:Jan-Mar, 2:Apr-Jun, 3:Jul-Sep, 4:Oct-Dec
-year = 2024 # Enter the year being run in 4 digit format
-
-
 # Folder containing the Excel files
-folder_path = 'returns'
 
-# List all files in the folder
-# os.listdir(folder_path)
-file_list = [f for f in os.listdir(folder_path) if f.endswith('.xlsx') and f != 'NSD.xlsx']
+returns_folder = 'returns'
+list_of_file_names = os.listdir(returns_folder)
+list_of_file_names = [name for name in list_of_file_names if name.endswith('.xlsx')]
+list_of_file_names.remove('NSD.xlsx') # exclude NSD for now. Will work on it separately
+len(list_of_file_names) # should be 42 for now without NSD
 
-# Initialize an empty list to hold the data
+# IMPORT DATA FROM EACH FILE IN RETURNS FOLDER
 
-data = []
+list_of_data_frames = []
 
 # Loop through the files and read the necessary data
-for file_name in file_list:
-    file_path = os.path.join(folder_path, file_name)
+for file_name in list_of_file_names:
+    file_path = os.path.join(returns_folder, file_name)
     
     # Read the value in cell C2
     area_id = pd.read_excel(file_path, sheet_name='Data entry', usecols='A', nrows=2).iloc[0, 0]
@@ -95,10 +54,10 @@ for file_name in file_list:
     data_range['AREA_ID'] = area_id
     data_range['AREA'] = area_name
     # Append to the data list
-    data.append(data_range)
+    list_of_data_frames.append(data_range)
 
     # Append NSD
-file_path = os.path.join(folder_path, 'NSD.xlsx')
+file_path = os.path.join(returns_folder, 'NSD.xlsx')
 sheet_df = pd.read_excel(file_path, sheet_name='Data entry')
 start_row = sheet_df[sheet_df.iloc[:, 1]=='Female'].index[0]
 data_range = sheet_df.iloc[start_row:start_row+5, 1:4].fillna(value=0)
@@ -108,35 +67,39 @@ area_name = pd.read_excel(file_path, sheet_name='Data entry', usecols='C', nrows
 data_range['AREA_ID'] = area_id
 data_range['AREA'] = area_name
 
-data.append(data_range)
+list_of_data_frames.append(data_range)
 
 # Concatenate all the dataframes into one
-sex = pd.concat(data, ignore_index=True).fillna(value=0)
-sex = sex[['AREA_ID','AREA'] + [col for col in sex.columns if col not in ['AREA_ID','AREA']]]
+sex_data = pd.concat(list_of_data_frames, ignore_index=True).fillna(value=0)
+sex_data = sex_data[['AREA_ID','AREA'] + [col for col in sex_data.columns if col not in ['AREA_ID','AREA']]]
 
 # Some corrections in free text row
-# sex.loc[[55,59]]
-#sex.iloc[55,3] = sex.iloc[55,3] + 1
-#sex.iloc[59,3] = 0
+# sex_data.loc[[55,59]]
+#sex_data.iloc[55,3] = sex_data.iloc[55,3] + 1
+#sex_data.iloc[59,3] = 0
 
-sex[sex.columns[3:]] = sex[sex.columns[3:]].astype('int64')
+sex_data[sex_data.columns[3:]] = sex_data[sex_data.columns[3:]].astype('int64')
 
-sex['TOTAL'] = sex[sex.columns[3:]].sum(axis=1)
+sex_data['TOTAL'] = sex_data[sex_data.columns[3:]].sum(axis=1)
+sex_data
+len(sex_data) # should be 215
+sex_data['AREA'].value_counts() # 5 each
 
-len(sex) # should be 215
-sex['AREA'].value_counts() # 5 each
+sex_data.groupby('SEX')[sex_data.columns[3:]].sum().reset_index().to_excel('sex.xlsx',index = False)
+sex_data.head()
 
-sex.head()
-
+sex_data.columns[3:]
 # Bring in Level 2 + Level 3
 
-sex_correction = sex.groupby(['AREA_ID','AREA'])['TOTAL'].sum().reset_index(name='TOTAL')
+sex_correction = sex_data.groupby(['AREA_ID','AREA'])['TOTAL'].sum().reset_index(name='TOTAL')
 
-sex_correction = pd.merge(sex_correction, mappa_data[['AREA_ID','LEVEL2TOTT1','LEVEL3TOTT1']], on='AREA_ID')
+mappa_data = mappa_data.rename(columns={'AREAID':'AREA_ID'})
+mappa_data.head()
+sex_correction = pd.merge(sex_correction, mappa_data[['AREA_ID','LEVEL2TOTT1','LEVEL3TOTT1']], on ='AREA_ID')
 
 sex_correction['L2_L3_TOTAL'] = sex_correction['LEVEL2TOTT1'] +  sex_correction['LEVEL3TOTT1']
 
-sex_correction =  sex_correction.drop(['LEVEL2TOTT1','LEVEL3TOTT1'],axis=1)
+# sex_correction =  sex_correction.drop(['LEVEL2TOTT1','LEVEL3TOTT1'],axis=1)
 
 sex_correction['DIFFERENCE'] = (sex_correction['TOTAL']  - sex_correction['L2_L3_TOTAL'])
 sex_correction['DIFFERENCE'] = sex_correction['DIFFERENCE'].abs()
@@ -146,6 +109,6 @@ sex_correction.loc[sex_correction['DIFFERENCE']==0,'CHECK'] = ''
 
 sex_correction
 
-# Write to Excel
+# Write to Excel if any to check
 with pd.ExcelWriter(output_work_book,engine='openpyxl', mode='a',if_sheet_exists='replace') as writer:
     sex_correction.to_excel(writer,sheet_name='Sex',index=False)

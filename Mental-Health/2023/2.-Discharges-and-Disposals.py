@@ -67,7 +67,7 @@ year = 2023
 
 #--------------- Import the population dataset based on date of authorisation
 
-disch_and_disp = pd.read_excel(f"s3://alpha-omppg/Mental Health/{year}/Raw Data/Discharges_and_Disposals_{year}.xls")
+disch_and_disp = pd.read_excel(f"s3://alpha-omppg/Mental-Health/{year}/raw-data/Discharges_and_Disposals_{year}.xls")
 
 disch_and_disp = disch_and_disp.replace("–","-", regex = True) # replace long dashes
 
@@ -275,3 +275,5 @@ disch_and_disp_2['NOMS_ID'] = disch_and_disp_2['NOMS_ID'].astype(str)
 disch_and_disp_2['PRISON_NUMBER'] = disch_and_disp_2['PRISON_NUMBER'].astype(str)
 
 disch_and_disp_2.to_parquet(f"s3://alpha-omppg/Mental Health/2023/Parquet Data/dispdisch__prepared_actual_date{year}.parquet")
+
+disch_and_disp_2.to_excel("Disch_and_Disp.xlsx")

@@ -5,34 +5,6 @@ By Eric Nyame, 05/02/2024
 
 #---------------------------------- Import Packages
 
-import pandas as pd
-import numpy as np
-import sys
-import duckdb
-import importlib
-
-# import re
-
-# from dateutil.relativedelta import relativedelta
-
-# import my predefined functions, akin to macros in SAS
-
-sys.path.append('/home/jovyan/OMPPG/Macro Library')
-# from my_log import my_log
-import Out_of_bounds_dates
-import prepareMatch
-importlib.reload(prepareMatch)
-import openMatch
-importlib.reload(openMatch)
-import TimeDiffs
-import tariff_groups
-importlib.reload(tariff_groups)
-
-# Set display options
-
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
-
 # Ensures no wrapping of cell contents - run it separately
 
 %%html
@@ -42,18 +14,11 @@ pd.options.display.max_rows = None
 }
 </style>
 
-# function to remove trailing and leading blanks
-def strip_blanks(df):
-    for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
-        
-#---------------------------------- globals are already set
-
 
 #----------------------------------Import PPUD data
 
-ispPPUD = pd.read_excel(f's3://alpha-omppg/ISP Population/PPUD/{year}Q{quarter}/PPUD_ISP_{year}Q{quarter}.xls')
-wlPPUD = pd.read_excel(f's3://alpha-omppg/ISP Population/PPUD/{year}Q{quarter}/PPUD_WholeLife_{year}Q{quarter}.xls')
+ispPPUD = pd.read_excel(f's3://alpha-omppg/isp-population/PPUD/{year}Q{quarter}/PPUD_ISP_{year}Q{quarter}.xls')
+wlPPUD = pd.read_excel(f's3://alpha-omppg/isp-population/PPUD/{year}Q{quarter}/PPUD_WholeLife_{year}Q{quarter}.xls')
 
 ispPPUD = ispPPUD.drop_duplicates()
 wlPPUD = wlPPUD.drop_duplicates()
@@ -63,7 +28,7 @@ wlPPUD.info()
 
 #----------------------------------Datetime columns appearing as object type - change
 
-dateColsToChange = ['LATEST_RELEASE_DATE','INDEX_OFFENCE_DATE']
+dateColsToChange = ['LATEST_RELEASE_DATE']
 
 check1 =pd.DataFrame()
 for col in dateColsToChange:
@@ -71,7 +36,7 @@ for col in dateColsToChange:
 
 check1= check1[dateColsToChange + [col for col in ispPPUD.columns if col not in dateColsToChange]]
 check1
-check1.shape # 0
+check1.shape # 2
 
     # Make two corrections to dates
 for column in dateColsToChange:
@@ -117,11 +82,11 @@ query = """SELECT a.*,
             a.DOS = b.DOS"""
 
 ispPPUD_Matched = duckdb.sql(query).df()
-ispPPUD_Matched.shape 
+ispPPUD_Matched.shape # 25326, 25222
 
 ispPPUD_Matched.loc[ispPPUD_Matched['WHOLE_LIFE'] == True,'TARIFF_EXPIRY_DATE'] = pd.Timestamp.max.normalize()
 
-ispPPUD_Matched[ispPPUD_Matched['WHOLE_LIFE'] == True]['TARIFF_EXPIRY_DATE'].head()
+# ispPPUD_Matched[ispPPUD_Matched['WHOLE_LIFE'] == True]['TARIFF_EXPIRY_DATE'].head()
 
 ispPPUD_Matched = prepareMatch.prepareMatch(ispPPUD_Matched)
 
@@ -137,7 +102,6 @@ query = """SELECT DISTINCT a.*,
                             b.FAMILY_NAME AS SURNAME_PPUD, 
                             b.DOB AS DOB_PPUD, 
                             b.INIT AS INIT_PPUD,
-                            b.DETERMINATE_FLAG,
                             b.PRISON_NUMBER, 
                             b.PN_TRIM, 
                             b.PN_START, 
@@ -163,14 +127,14 @@ query = """SELECT DISTINCT a.*,
                        a.NOMIS_ID = b.PN_END)"""
 
 ispTariffs = duckdb.sql(query).df()
-ispTariffs.shape
+ispTariffs.shape # 22936, 22218
 
 # subset
 ispTariffs = ispTariffs[(ispTariffs['SENTENCESTATUS'].isin(['(5) IPP','(6) Life'])) | 
                         (~(ispTariffs['CUSTODY_TYPE_DESCRIPTION'].isna())) | 
                         (~(ispTariffs['TARIFF_EXPIRY_DATE'].isna()))]
 
-ispTariffs.shape # 11356
+ispTariffs.shape # 11323, 11325,11336, 11352, 11356
 
     # Rate quality of matches
     
@@ -213,14 +177,14 @@ ispTariffs = ispTariffs.sort_values(by=['NOMIS_ID','MATCH','SENT_RANK','CUS_PROP
 
 ispTNodup = ispTariffs.drop_duplicates(subset='NOMIS_ID', keep ='first').copy()
 
-ispTNodup.shape # 11000
+ispTNodup.shape # 10963,10976, 10993, 11000
 
 #----------------------------------Add detailed offence groups
 
 ispTNodup['OFFENCE_UPPER'] = ispTNodup['OFFENCE'].str.upper()
 ispTNodup = ispTNodup.drop(['CUS_PROPER','SENT_RANK'], axis = 1)
 
-offLookup = pd.read_excel("s3://alpha-omppg/ISP Population/Reference/ISP Lookup.xls",sheet_name='Offences')
+offLookup = pd.read_excel("s3://alpha-omppg/isp-population/Reference/ISP Lookup.xls",sheet_name='Offences')
 offLookup.columns = offLookup.columns.str.upper()
 strip_blanks(offLookup)
 offLookup = offLookup.drop_duplicates(subset='OFFENCE_UPPER', keep ='first')
@@ -235,7 +199,7 @@ query = """SELECT a.*,
 
 ispTNodup = duckdb.sql(query).df()
 
-ispTNodup.shape
+ispTNodup.shape # 10963
 
     # drop some columns
     
@@ -246,7 +210,7 @@ ispTNodup = ispTNodup.drop(['MATCH','SURNAME_PPUD', 'DOB_PPUD', 'INIT_PPUD','PN_
     
 notIPP = (ispTNodup['SENTENCESTATUS'] == '(5) IPP') & (ispTNodup['TARIFF_EXPIRY_DATE'].dt.year < 2005)
 
-ispTNodup.loc[notIPP,'TARIFF_EXPIRY_DATE'] = np.nan
+ispTNodup.loc[notIPP,'TARIFF_EXPIRY_DATE'] = pd.NaT
 
 tpast1 = (ispTNodup['TARIFF_EXPIRY_DATE'].isna()) | (ispTNodup['TARIFF_EXPIRY_DATE'] == pd.Timestamp(1900,1,1))
 tpast2 = (ispTNodup['WHOLE_LIFE'] == True) | (ispTNodup['TARIFF_EXPIRY_DATE'] >= ispTNodup['EXTRACTDATE'])
@@ -301,21 +265,20 @@ ispTNodup['SENTENCED_AGE'] = np.where(ispTNodup['DOS'] > ispTNodup['DATEOFBIRTH'
                                         np.nan)
 
   # Hitting tariff in next quarter
-next_day = pd.Timestamp(year,3,day)+ np.timedelta64(1,'D')
+next_day = pd.Timestamp(year,int(month),day)+ np.timedelta64(1,'D')
 
 next_day_year = next_day.year
 next_day_quarter = next_day.quarter
 
 ted_in_quart_cond = ((ispTNodup['TARIFF_EXPIRY_DATE'].dt.quarter == next_day_quarter) & (ispTNodup['TARIFF_EXPIRY_DATE'].dt.year == next_day_year))
 
+ted_in_quart_cond.sum()
+
 ispTNodup['TARIFF_IN_QUARTER'] = np.nan 
 
 ispTNodup.loc[ted_in_quart_cond, 'TARIFF_IN_QUARTER'] = ispTNodup['TARIFF_EXPIRY_DATE']
 
-
     # Tariff length - publication categories
-    
-import tariff_groups
 
 ispTNodup = tariff_groups.tariff_groups(ispTNodup)
 
@@ -346,7 +309,7 @@ nomis_recall_cond = (ispTNodup['SENTENCESTATUS'] == '(7) Recall')
 missing_cus_type = ispTNodup['CUSTODY_TYPE_DESCRIPTION'].isna()
 ipp_cus_type = ispTNodup['CUSTODY_TYPE_DESCRIPTION'].isin(['IPP','DPP'])
 
-ispTNodup['ISP_STATUS'] = np.nan
+ispTNodup['ISP_STATUS'] = ''
 ispTNodup.loc[nomis_recall_cond & missing_cus_type,'ISP_STATUS'] = 'Recalled ISP (unknown sentence)'
 ispTNodup.loc[nomis_recall_cond & ipp_cus_type,'ISP_STATUS'] = 'Recalled IPP'
 ispTNodup.loc[nomis_recall_cond & ~(missing_cus_type) & ~(ipp_cus_type),'ISP_STATUS'] = 'Recalled Life'

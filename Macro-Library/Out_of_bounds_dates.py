@@ -27,7 +27,7 @@ def date_out_of_bounds(df,dateColObj):
     # df['in_bounds'] = df[dateColObj].apply(check_bounds)
     # out_of_bounds_dates = df[~df['in_bounds']]
     
-    outOfBoundsMask = df[dateColObj].apply(check_bounds)
+    outOfBoundsMask = df[dateColObj].astype(str).apply(check_bounds)
     out_of_bounds_dates = df[~outOfBoundsMask]
     
     # reset dataframe

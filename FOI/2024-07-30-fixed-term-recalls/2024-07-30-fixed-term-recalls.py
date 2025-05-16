@@ -49,7 +49,7 @@ pd.set_option('display.max_colwidth', None)
 # function to remove trailing and leading blanks
 def strip_blanks(df):
     for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
+        df[col] = df[col].apply(lambda x: x.strip() if (isinstance(x, str) and not x.isspace()) else x) #
 
 
 # (1) How many Fixed Term Recalls to custody there were in Q1 2024

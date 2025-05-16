@@ -60,20 +60,21 @@ qtr = 1 # 1:Jan-Mar, 2:Apr-Jun, 3:Jul-Sep, 4:Oct-Dec
 year = 2024 # Enter the year being run in 4 digit format
 
 
-# Folder containing the Excel files
-folder_path = 'returns'
+# GET A LIST OF FILE NAMES FROM RETURNS FOLDER
 
-# List all files in the folder
-# os.listdir(folder_path)
-file_list = [f for f in os.listdir(folder_path) if f.endswith('.xlsx') and f != 'NSD.xlsx']
+returns_folder = 'returns' 
+list_of_file_names = os.listdir(returns_folder)
+list_of_file_names = [name for name in list_of_file_names if name.endswith('.xlsx')]
+list_of_file_names.remove('NSD.xlsx') # exclude NSD for now. Will work on it separately
+len(list_of_file_names) # should be 42 for now without NSD
 
 # Initialize an empty list to hold the data
 
-data = []
+list_of_data_frames = []
 
 # Loop through the files and read the necessary data
-for file_name in file_list:
-    file_path = os.path.join(folder_path, file_name)
+for file_name in list_of_file_names:
+    file_path = os.path.join(returns_folder, file_name)
     
     # Read the value in cell C2
     area_id = pd.read_excel(file_path, sheet_name='Data entry', usecols='A', nrows=2).iloc[0, 0]
@@ -95,10 +96,10 @@ for file_name in file_list:
     data_range['AREA_ID'] = area_id
     data_range['AREA'] = area_name
     # Append to the data list
-    data.append(data_range)
+    list_of_data_frames.append(data_range)
 
     # Append NSD
-file_path = os.path.join(folder_path, 'NSD.xlsx')
+file_path = os.path.join(returns_folder, 'NSD.xlsx')
 sheet_df = pd.read_excel(file_path, sheet_name='Data entry')
 start_row = sheet_df[sheet_df.iloc[:, 1]=='White - Scottish'].index[0]
 data_range = sheet_df.iloc[start_row:start_row+40, 1:4].fillna(value=0)
@@ -108,23 +109,27 @@ area_name = pd.read_excel(file_path, sheet_name='Data entry', usecols='C', nrows
 data_range['AREA_ID'] = area_id
 data_range['AREA'] = area_name
 
-data.append(data_range)
+list_of_data_frames.append(data_range)
 
 # Concatenate all the dataframes into one
-ethnicity = pd.concat(data, ignore_index=True).fillna(value=0)
-ethnicity = ethnicity[['AREA_ID','AREA'] + [col for col in ethnicity.columns if col not in ['AREA_ID','AREA']]]
-ethnicity[ethnicity.columns[3:]] = ethnicity[ethnicity.columns[3:]].astype('int64')
+ethnicity_data = pd.concat(list_of_data_frames, ignore_index=True).fillna(value=0)
+ethnicity_data = ethnicity_data[['AREA_ID','AREA'] + [col for col in ethnicity_data.columns if col not in ['AREA_ID','AREA']]]
+ethnicity_data[ethnicity_data.columns[3:]] = ethnicity_data[ethnicity_data.columns[3:]].astype('int64')
 
-ethnicity['TOTAL'] = ethnicity[ethnicity.columns[3:]].sum(axis=1)
+ethnicity_data['TOTAL'] = ethnicity_data[ethnicity_data.columns[3:]].sum(axis=1)
 
-len(ethnicity) # should be 1720
-ethnicity['AREA'].value_counts() # 40 each
+len(ethnicity_data) # should be 1720
+ethnicity_data['AREA'].value_counts() # 40 each
 
-ethnicity.head()
+ethnicity_data.head()
+
+ethnicity(ethnicity_data,'ETHNICITY','ETHNICITY2')
+    
+ethnicity_data.groupby('ETHNICITY2')[sex_data.columns[3:]].sum().reset_index().to_excel('ethnicity.xlsx',index = False)
 
 # Bring in Level 2 + Level 3
 
-ethnicity_correction = ethnicity.groupby(['AREA_ID','AREA'])['TOTAL'].sum().reset_index(name='TOTAL')
+ethnicity_correction = ethnicity_data.groupby(['AREA_ID','AREA'])['TOTAL'].sum().reset_index(name='TOTAL')
 
 ethnicity_correction = pd.merge(ethnicity_correction, mappa_data[['AREA_ID','LEVEL2TOTT1','LEVEL3TOTT1']], on='AREA_ID')
 
@@ -140,7 +145,7 @@ ethnicity_correction.loc[ethnicity_correction['DIFFERENCE']==0,'CHECK'] = ''
 
 ethnicity_correction
 
-# Write to Excel
+# Write to Excel if any to check
 
 with pd.ExcelWriter(output_work_book,engine='openpyxl', mode='a',if_sheet_exists='replace') as writer:
     ethnicity_correction.to_excel(writer,sheet_name='Ethnicity',index=False)

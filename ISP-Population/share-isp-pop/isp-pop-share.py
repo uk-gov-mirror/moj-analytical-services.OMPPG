@@ -12,6 +12,8 @@ import duckdb
 # print(duckdb.__version__)
 # import importlib
 
+from itables import show
+
 # import re
 
 # from dateutil.relativedelta import relativedelta
@@ -22,12 +24,12 @@ sys.path.append('/home/jovyan/OMPPG/Macro-Library')
 # from my_log import my_log
 import Out_of_bounds_dates
 import prepareMatch
-importlib.reload(prepareMatch)
+# importlib.reload(prepareMatch)
 import openMatch
-importlib.reload(openMatch)
+#importlib.reload(openMatch)
 import TimeDiffs
 import tariff_groups
-importlib.reload(tariff_groups)
+#importlib.reload(tariff_groups)
 
 # Set display options
 
@@ -37,6 +39,11 @@ pd.set_option('display.max_colwidth', None)
 
 # Ensures no wrapping of cell contents - run it separately
 
+# function to remove trailing and leading blanks
+def strip_blanks(df):
+    for col in df.select_dtypes(include='object').columns:
+        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
+        
 %%html
 <style>
 .dataframe td {
@@ -44,496 +51,40 @@ pd.set_option('display.max_colwidth', None)
 }
 </style>
 
-# function to remove trailing and leading blanks
-def strip_blanks(df):
-    for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
-        
-
 #---------------------------------- Load GPP data
 
-isp = pd.read_parquet("s3://alpha-omppg/isp-population/final/isp_pop_2024q2.parquet")
+isp = pd.read_parquet("s3://alpha-omppg/isp-population/final/isp_pop_2025q1.parquet")
 
-isp.to_excel("isp_pop.xlsx",index=False)
-# cols = isp.columns.to_list()
-cols
-'AGE',
- 'LAST_MOVEMENT_DIRECTION',
- 'SEXUAL',
- 'AGEBAND',
- 'LAST_MOVEMENT_FROM',
- 'SURNAME',
- 'CRO_NO',
- 'LAST_MOVEMENT_REASON',
- 'VIOLENT',
- 'CSRA_LEVEL',
- 'LAST_MOVEMENT_TO',
- 'PRISONGENDER',
- 'DATEOFRELEASE',
- 'LAST_MOVEMENT_TYPE',
- 'PRISONPGDREGION',
- 'DATEOFBIRTH',
- 'CELLLOCATION',
- 'FNPSTATUS',
- 'DRUG_OFFENCES',
- 'OFFENCE',
- 'MAINFUNCTION',
- 'PRISONCODE',
- 'MAIN_OFFENCE_STATUTE',
- 'PRISONPROBATIONREGION',
- 'ETHNICGROUP',
- 'MARITALSTATUS',
- 'PRISONEDREGION',
- 'EXTRACTDATE',
- 'MATERNITY_ONGOING_OR_INACTIVE',
- 'SECCATSUMMARY',
- 'F2052START',
- 'MATERNITYSTATUS',
- 'OFFENCEGROUP',
- 'F2052_STATUS',
- 'NATIONALITYNAME',
- 'SENTENCESTATUS',
- 'SEX_OFFENDER_REGISTER',
- 'FIRSTCONVICTED',
- 'NOMIS_ID',
- 'IMPRISONMENTSTATUSSHORT',
- 'FIRSTMOVEMENT',
- 'GENDER',
- 'FIRSTSENTENCED',
- 'PNCID_NO',
- 'FORENAME',
- 'PRISONNAME',
- 'IEP',
- 'RELIGION',
- 'IMPRISONMENT_STATUS_CATEGORY',
- 'SEC_CAT_ASSESSMENT_DATE',
- 'INDEFINITE_SENTENCE',
- 'SECURITYCATEGORY',
- 'LAST_MOVEMENT_DATE',
- 'INITIAL',
- 'OFFGRP4',
- 'OFFGRP2',
- 'PROGRESSION_REGIME',
- 'OPEN_TYPE',
- 'CONDITIONS',
- 'DOS',
- 'TARIFF_EXPIRY_DATE',
- 'EXCLUDED_FROM_OPEN',
- 'WHOLE_LIFE',
- 'CUSTODY_TYPE_DESCRIPTION',
- 'STATUS_DESCRIPTION',
- 'LATEST_RELEASE_DATE',
- 'DETERMINATE_FLAG',
- 'PRISON_NUMBER',
- 'INDEX_OFFENCE_DESCRIPTION',
- 'PPUD_PRISON',
- 'PROBATION_SERVICE_DESCRIPTION',
- 'EFFECTIVE_TED',
- 'DETAILED_OFFENCE_GROUP',
- 'TARIFF_PAST',
- 'TARIFF_MONTHS',
- 'TARIFF_YEARS',
- 'SERVED_MONTHS',
- 'SERVED_YEARS',
- 'TARIFFS_SERVED',
- 'OVERTARIFF_MONTHS',
- 'OVERTARIFF_YEARS',
- 'SENTENCED_AGE',
- 'TARIFF_IN_QUARTER',
- 'TARIFF',
- 'FIRST_RELEASE_DATE',
- 'FIRST_RELEASE_CONDITIONS',
- 'MONTHS_BEFORE_RELEASE',
- 'YEARS_BEFORE_RELEASE',
- 'LAST_RELEASE_DATE',
- 'LAST_RELEASE_TYPE',
- 'LAST_RELEASE_CONDITIONS',
- 'LAST_LICENCE_REVOKE_DATE',
- 'LAST_RTC_DATE',
- 'LAST_RECALLNUM',
- 'LAST_RECALL_NUMBER_OF_REASONS',
- 'LAST_RECALL_REASONS',
- 'LAST_RECALL_AREA',
- 'LAST_RECALL_FURTHER_CHARGE',
- 'ISP_STATUS',
- 'PPUD_STATUS',
- 'DAYS_RECALLED',
- 'MONTHS_RECALLED',
- 'CUSTODY_STAGE',
- 'ISP_TYPE',
- 'LAST_REVIEW_REASON',
- 'LAST_REVIEW_RESULT',
- 'LAST_REVIEW_DATE',
- 'LAST_SUBSEQUENT_OUTCOME',
- 'LAST_SUBSEQUENT_DATE',
- 'LAST_REVIEWNUM',
- 'MAX_PROGRESS',
- 'PROGRESS_DATE',
- 'OPEN_REVIEWNUM',
- 'LAST_OPEN_DATE',
- 'PREVIOUS_PROGRESS'
-gpp_ipp = pd.read_parquetl(f's3://alpha-omppg/ISP Population/PPUD/{year}Q{quarter}/PPUD_IPP_GPP_{year}Q{quarter}.xls')
-gpp_life = pd.read_excel(f's3://alpha-omppg/ISP Population/PPUD/{year}Q{quarter}/PPUD_Life_GPP_{year}Q{quarter}.xls')
+isp['EXTRACTDATE'].value_counts()
 
-gpp = pd.concat([gpp_ipp,gpp_life],ignore_index = True)
+ipp = isp[isp['ISP_STATUS'].str.contains('IPP',case=False,na=False)]
+len(ipp)
 
-gpp.shape
+ipp.pivot_table(index='O')
+unreleased_ipp = ipp[ipp['ISP_STATUS'].str.contains('Unr',case=False,na=False)]
 
-gpp = gpp.drop_duplicates()
+tariff_not_past = unreleased_ipp[unreleased_ipp['TARIFF_PAST'] == 'N'] 
 
-gpp.shape
+len(tariff_not_past) # 8
 
-strip_blanks(gpp)
+tariff_not_past
+3]ipp[ipp['ISP_STATUS'].str.contains('Unr',case=False,na=False)]
+len(unreleased_ipp) # 1045
 
+len(unreleased_ipp[unreleased_ipp['TARIFF_YEARS'] < 3]) # 416
+unreleased_ipp[unreleased_ipp['TARIFF_YEARS'] < 3].head()
+ipp.head()
 
-    # Convert columns that should be datetime to datetime
-gpp.info()
+rape = (ipp['OFFENCE'].str.contains('rape',case=False)) & (~ipp['OFFENCE'].str.contains('attempt',case=False))
 
-dateColsToChange =['CURRENT_TARGET_DATE']
+ipp[rape]['OFFENCE'].value_counts(dropna=False)
+ipp_rape = ipp[rape]
 
-        # Check wrong dates
-    
-check1 =pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(gpp,col)],axis = 0,ignore_index=True)
+len(ipp_rape) # 415
+ipp_rape.head(5)
 
-check1= check1[dateColsToChange + [col for col in gpp.columns if col not in dateColsToChange]]
-check1.shape #6 cases, out of bounds years
-check1
+ipp_rape['PRISON_NUMBER'].isna().sum()
 
-# Make two corrections to dates
-gpp.loc[gpp['CURRENT_TARGET_DATE'].astype(str).str.contains('2911|2916|2917|2919'),'CURRENT_TARGET_DATE']=np.nan
+ipp_rape.sample(50)
 
-    # Rerun check1 and see if if check1 is empty, then convert all datetime columns to datetime
-    
-check1 =pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(gpp,col)],axis = 0,ignore_index=True)
-
-check1.shape # if zero, proceed
-
-    # change certain columns to pandas datetime type
-
-for column in dateColsToChange:
-    gpp[column] = pd.to_datetime(gpp[column])
-
-gpp.info()
-
-#----------------------------------Match to ISP Population Dataset on either NOMIS number, Prison Number or Name and 
-
-duckdb.default_connection.execute("SET GLOBAL pandas_analyze_sample=100000")
-
-query = """SELECT a.*,                                                         
-                   b.NOMIS_ID,
-                   b.DOS                        
-            FROM gpp AS a INNER JOIN ispLastRel AS b ON 
-                  ( (a.PRISON_NUMBER = b.PRISON_NUMBER AND a.PRISON_NUMBER IS NOT NULL) OR
-                    (a.NOMS_ID = B.NOMIS_ID AND a.NOMS_ID IS NOT NULL) 
-                  ) AND
-                  (a.TARIFF_EXPIRY_DATE = b.TARIFF_EXPIRY_DATE AND a.TARIFF_EXPIRY_DATE IS NOT NULL)"""
-
-gpp2 = duckdb.sql(query).df()
-gpp2.shape # 29616
-
-# check bizare reviw dates
-
-gpp2['DOS'].isna().sum() # 0
-gpp2['REVIEW_DATE'].isna().sum() # 0
-
-gpp2[gpp2['REVIEW_DATE'].dt.date <= gpp2['DOS'].dt.date][['FILE_REFERENCE','FAMILY_NAME','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE']].head()
-
-gpp2 = gpp2[gpp2['REVIEW_DATE'].dt.date > gpp2['DOS'].dt.date]
-gpp2.shape #29605
-
-gpp2['U_SENT'] = gpp2['TARIFF_EXPIRY_DATE'].astype(str) + gpp2['PRISON_NUMBER'].astype(str)
-
-#---------------------------------- Sort out outcome
-
-gpp2['DECISION'] = gpp2['REVIEW_RESULT_DESCRIPTION']
-gpp2['PROPER'] = 1
-
-# gpp2['REVIEW_RESULT_DESCRIPTION'].value_counts(dropna=False)
-
-correct_review_result = ['Compassionate Release',
-                        'Future Release',
-                        'Nil Discharge',
-                        'No Release',
-                        'Offender automatically released at 28 days',
-                        'Offender released by SofS before 28 days',
-                        'Open - Exceptional Circumstances',
-                        'Open Conditions - Accepted [*]',
-                        'Open Conditions - Rejected [*]',
-                        'Oral Hearing - Release',
-                        'Paper Decision - Release',
-                        'Paper Decision - Release',
-                        'Parole Board Forward Release Date',
-                        'Parole Board No Recommendation',
-                        'Parole Board Release Immediately',
-                        'Recommend Release',
-                        'Recommendation Accepted (Ministers)',
-                        'Recommendation Accepted (PRS)',
-                        'Recommendation Rejected',
-                        'Release (FTR)',
-                        'Release (SofS)',
-                        'Release [*]',
-                        'Release at CRD (EDS/SOPC)',
-                        'Release at SED',
-                        'Release on papers (IPP/DPP cases only)',
-                        'Return to Open',
-                        'Stay In Closed [*]',
-                        'Stay In Open [*]']
-
-gpp2.loc[~(gpp2['DECISION'].isin(correct_review_result)),'DECISION'] = np.nan
-gpp2.loc[~(gpp2['DECISION'].isin(correct_review_result)),'PROPER'] = 0
-
-gpp2.loc[gpp2['DECISION'].isna(),'DECISION'] = gpp2['SUBSEQUENT_OUTCOME_DESCRIPTION']
-
-correct_subs_outcome = ['Direct Release',
-                        'Release (SO) [**]',
-                        'Immediate Release',
-                        'Immediate Release (determ. recall ONLY)',
-                        'No Direction for Release',
-                        'No Hearing (SO) [*]',
-                        'No recommendation for open',
-                        'Not Granted',
-                        'Open Condition (SO) [*]',
-                        'Open Conditions',
-                        'Recommend Open Conditions',
-                        'Recommend Release',
-                        'Release (SO) [*]',
-                        'Release at a Future Date',
-                        'Release at specified date (determ. recall ONLY)',
-                        'Remain in Custody (Knockback)(SO) [*]',
-                        'Remain in Custody (Knockback) [*]',
-                        'No Release']
-
-gpp2.loc[(gpp2['PROPER']==0) & ~(gpp2['DECISION'].isin(correct_subs_outcome)),'DECISION'] = np.nan
-
-correct_status_result =['Open Agreed - Awaiting TX',
-                        'Released on Compassionate Grounds',
-                        'zzzCompleted - release at CRD']
-
-gpp2.loc[gpp2['DECISION'].isna() & gpp2['REVIEW_STATUS_DESCRIPTION'].isin(correct_status_result),'DECISION'] = gpp2['REVIEW_STATUS_DESCRIPTION']
-
-# gpp2.groupby(['REVIEW_RESULT_DESCRIPTION','SUBSEQUENT_OUTCOME_DESCRIPTION','DECISION']).size().reset_index(name='count')
-
-# gpp2['DECISION'].value_counts(dropna=False)
-
-gpp2.head()
-
-#----------------------------------Simplified results
-negatives = ['Stay In Closed [*]',
-            'Parole Board No Recommendation',
-            'Remain in Custody (Knockback)(SO) [*]',
-            'Remain in Custody (Knockback) [*]',
-            'Not Granted',
-            'No Release',
-            'Negative Decision (Paper) [*]',
-            'PB No Direction for Release',
-            'No Direction for Release',
-            'Nil Discharge',
-            'No Hearing (SO) [*]',
-            'Open Conditions - Rejected [*]',
-            'PB No Recommendation for Open',
-            'Recommendation Rejected',
-            'Stay In Open [*]',
-            'Return to Open']
-
-positives =['Release [*]',
-            'Release (SO) [*]',
-            'Release on papers (IPP/DPP cases only)',
-            'Release (SofS)',
-            'Parole Board Release Immediately',
-            'Parole Board Forward Release Date',
-            'Release at SED',
-            'Immediate Release',
-            'Release at a Future Date',
-            'Recommend Release',
-            'PB Immediate Release',
-            'Release (FTR)',
-            'Direct Release',
-            'Future Release',
-            'Immediate Release (determ. recall ONLY)',
-            'Release at specified date (determ. recall ONLY)',
-            'Compassionate Release',
-            'Offender automatically released at 28 days',
-            'PB Release at a Future Date',
-            'Release',
-            'Release at CRD (EDS/SOPC))',
-            'Release (SO) [**]',
-            'Release at CRD (EDS/SOPC)',
-            'Paper Decision - Release',
-            'Oral Hearing - Release',
-            'Offender released by SofS before 28 days']
-
-open = ['Open - Exceptional Circumstances',
-        'Open Condition (SO) [*]',
-        'Open Conditions',
-        'Open Conditions - Accepted [*]',
-        'Recommendation Accepted (PRS)',
-        'Open Agreed - Awaiting TX',
-        'PB Recommend Open Conditions',
-        'Recommend Open Conditions',
-        'Recommendation Accepted (Ministers)']
-
-gpp2['REVIEW_RESULT'] = np.nan
-gpp2.loc[gpp2['DECISION'].isin(negatives),'REVIEW_RESULT'] = 'Negative'
-gpp2.loc[gpp2['DECISION'].isin(positives),'REVIEW_RESULT'] = 'Release'
-gpp2.loc[gpp2['DECISION'].isin(open),'REVIEW_RESULT'] = 'Open'
-
-gpp2['REVIEW_RESULT'].value_counts(dropna=False)
-
-gpp2.shape
-
-#----------------------------------Deduplicate 
-
-gpp2['REVIEW_RESULT'].value_counts(dropna=False)
-
-gpp3 = gpp2[~(gpp2['REVIEW_RESULT'].isna())].copy()
-
-gpp3 = gpp3.drop(['DECISION','PROPER'], axis=1)
-
-gpp3.shape #26290
-
-gpp3.loc[gpp3['SUBSEQUENT_OUTCOME_ACTUAL'].isna(),'SUBSEQUENT_OUTCOME_ACTUAL'] = gpp3['REVIEW_DATE']
-
-gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False).sum() # 18
-
-# gpp3[gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False)][['FILE_REFERENCE','U_SENT','SUBSEQUENT_OUTCOME_ACTUAL','FAMILY_NAME','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE','REVIEW_STATUS_DESCRIPTION','REVIEW_RESULT']].head()
-
-    # select duplicated entry with the least missing values accross
-
-gpp3['numb1'] = gpp3.apply(lambda x: x.astype(str).str.contains('Not Applicable',case=False).sum(), axis=1)
-gpp3['numb2'] =gpp3.apply(lambda x: x.astype(str).str.contains('Not specified',case=False).sum(), axis=1)
-gpp3['numb3'] = gpp3.apply(lambda x: pd.isna(x).sum(), axis=1)
-gpp3['numb'] = gpp3['numb1'] + gpp3['numb2'] + gpp3['numb3']
-
-gpp3 = gpp3.sort_values(['U_SENT','numb'])
-
-gpp3[gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False)][['FILE_REFERENCE','U_SENT','SUBSEQUENT_OUTCOME_ACTUAL','FAMILY_NAME','numb','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE','REVIEW_STATUS_DESCRIPTION','REVIEW_RESULT']]
-
-gpp3 = gpp3.drop_duplicates(subset=['U_SENT','REVIEW_DATE'])  # keeps only the first entries with fewer missing data
-gpp3 = gpp3.drop(columns=(['numb1','numb2','numb3','numb']))
-
-gpp3.shape # 26281
-
-# ---------------------------------Identify pre, post and recall reviews
-
-on_and_post_tariff = ['Post Tariff',
-                      'On Tariff',
-                      '01 RECALL',
-                      'Pre Tariff',
-                      'ZZZ- GPP ON/POST tariff - DO NOT USE',
-                      'Lifer Migrated Review',
-                      'First Review [*]',
-                      'Subsequent Review [*]',
-                      'ZZZ- GPP pre tariff - DO NOT USE',
-                      'Oral Hearing',
-                      'Post tariff consideration for open conditions',
-                      'Oral Lifer Recall Hearing',
-                      'ZZZ- GPP POST Tariff - DO NOT USE',
-                      'Post Tariff - MHT Positive Dec (RC Neg Rec) - MHSP',
-                      'On Tariff - MHT Positive Dec (RC Neg Rec) - MHSP']
-
-#gpp2 = gpp2[gpp2['REVIEW_REASON_DESCRIPTION'].isin(on_and_post_tariff)]
-
-gpp3[gpp3['REVIEW_REASON_DESCRIPTION'].astype(str).str.contains('Pre Tariff',case=False)]['REVIEW_REASON_DESCRIPTION'].value_counts()
-
-gpp3.loc[gpp3['REVIEW_REASON_DESCRIPTION'].astype(str).str.contains('Pre Tariff',case=False),'REVIEW_REASON_DESCRIPTION'] = 'Pre Tariff'
-
-gpp3[gpp3['REVIEW_REASON_DESCRIPTION'].astype(str).str.contains('Recall',case=False)]['REVIEW_REASON_DESCRIPTION'].value_counts()
-
-gpp3.loc[gpp3['REVIEW_REASON_DESCRIPTION'].astype(str).str.contains('Recall',case=False),'REVIEW_REASON_DESCRIPTION'] = 'Recall'
-
-gpp3.loc[~gpp3['REVIEW_REASON_DESCRIPTION'].isin(['Pre Tariff','Recall']),'REVIEW_REASON_DESCRIPTION'] = 'On/Post Tariff'
-
-gpp3.groupby(['REVIEW_REASON_DESCRIPTION','REVIEW_STATUS_DESCRIPTION']).size().reset_index(name='count')
-
-# ---------------------------------Count number of on/post tariff reviews for each offender per tarrif expiry date 
-
-gpp3.shape
-
-gpp3 = gpp3.sort_values(by =['U_SENT','SUBSEQUENT_OUTCOME_ACTUAL'])
-
-gpp3['REVIEWNUM'] = gpp3['U_SENT'].map(gpp3[gpp3['REVIEW_REASON_DESCRIPTION']=='On/Post Tariff'].groupby('U_SENT').size())
-gpp3['REVIEWNUM'].fillna(0,inplace=True)
-
-gpp3['OPEN_REVIEWNUM'] = gpp3['U_SENT'].map(gpp3[gpp3['REVIEW_RESULT']=='Open'].groupby('U_SENT').size())
-gpp3['OPEN_REVIEWNUM'].fillna(0,inplace=True)
-
-#gpp3[['FILE_REFERENCE','FAMILY_NAME','REVIEWNUM','OPEN_REVIEWNUM','U_SENT','REVIEW_REASON_DESCRIPTION','REVIEW_TYPE_DESCRIPTION','REVIEW_RESULT','SUBSEQUENT_OUTCOME_ACTUAL','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE','REVIEW_STATUS_DESCRIPTION']].head(15)
-
-#--------------------------------------*Keep only valid outcomes and score them
-
-gpp3['REVIEW_PROGRESS'] = 0
-gpp3.loc[gpp3['REVIEW_RESULT'] == 'Release','REVIEW_PROGRESS'] = 2
-gpp3.loc[(gpp3['REVIEW_RESULT'] == 'Open') | (gpp3['REVIEW_RESULT_DESCRIPTION'] == 'Stay In Open [*]'),'REVIEW_PROGRESS'] = 1
-
-gpp3['MAX_PROGRESS'] = gpp3.groupby('U_SENT')['REVIEW_PROGRESS'].transform('max')
-
-gpp3['PROGRESS_DATE'] = gpp3['U_SENT'].map(gpp3[gpp3['REVIEW_PROGRESS']==gpp3['MAX_PROGRESS']].groupby('U_SENT')['SUBSEQUENT_OUTCOME_ACTUAL'].max())
-
-#gpp3[['FILE_REFERENCE','FAMILY_NAME','REVIEW_PROGRESS','MAX_PROGRESS','REVIEW_RESULT','PROGRESS_DATE','SUBSEQUENT_OUTCOME_ACTUAL','U_SENT','REVIEW_REASON_DESCRIPTION','REVIEW_TYPE_DESCRIPTION','REVIEW_DATE','TARIFF_EXPIRY_DATE']].head(40)
-
-    # Add open progress date against each review*/
-
-gpp3['LAST_OPEN_DATE'] = gpp3['U_SENT'].map(gpp3[gpp3['REVIEW_RESULT']=='Open'].groupby('U_SENT')['SUBSEQUENT_OUTCOME_ACTUAL'].max())
-
-
-#----------------------------------Match to ISP Population Dataset on either NOMIS number, Prison Number or Name and 
-
-duckdb.default_connection.execute("SET GLOBAL pandas_analyze_sample=100000")
-
-query = """SELECT DISTINCT a.*,                                                         
-                            b.REVIEW_REASON_DESCRIPTION AS LAST_REVIEW_REASON,
-                            b.REVIEW_RESULT AS LAST_REVIEW_RESULT, 
-                            b.REVIEW_DATE AS LAST_REVIEW_DATE,
-                            b.SUBSEQUENT_OUTCOME_DESCRIPTION AS LAST_SUBSEQUENT_OUTCOME, 
-                            b.SUBSEQUENT_OUTCOME_ACTUAL AS LAST_SUBSEQUENT_DATE,
-                            b.REVIEWNUM AS LAST_REVIEWNUM, 
-                            b.MAX_PROGRESS, 
-                            b.PROGRESS_DATE, 
-                            b.OPEN_REVIEWNUM, 
-                            b.LAST_OPEN_DATE
-            FROM ispLastRec AS a LEFT JOIN gpp3 AS b
-            ON b.SUBSEQUENT_OUTCOME_ACTUAL < a.EXTRACTDATE AND 
-                (b.REVIEW_REASON_DESCRIPTION = 'On Tariff' OR
-                 b.REVIEW_REASON_DESCRIPTION = 'On/Post Tariff' OR
-                 b.REVIEW_DATE > a.TARIFF_EXPIRY_DATE
-                ) AND
-                (a.PRISON_NUMBER = b.PRISON_NUMBER AND a.PRISON_NUMBER IS NOT NULL) AND
-                (a.TARIFF_EXPIRY_DATE = b.TARIFF_EXPIRY_DATE)"""
-
-gppMatched = duckdb.sql(query).df()
-gppMatched.shape
-
-    # deduplicate by latest review date
-gppMatched = gppMatched.sort_values(by=['LAST_SUBSEQUENT_DATE'],ascending = False)
-
-ispLastRev =gppMatched.drop_duplicates(subset='NOMIS_ID', keep ='first').copy()
-ispLastRev.shape
-
-#----------------------------------Add final variables
-
-ispLastRev.loc[ispLastRev['MAX_PROGRESS'] == 0,'PREVIOUS_PROGRESS'] ='None'
-ispLastRev.loc[ispLastRev['MAX_PROGRESS'] == 1,'PREVIOUS_PROGRESS'] = 'Open'
-ispLastRev.loc[ispLastRev['MAX_PROGRESS'] == 2,'PREVIOUS_PROGRESS'] = 'Release'
-
-ispLastRev.shape
-
-
-#---------------------------------- Save
-ispLastRev.to_parquet(f"s3://alpha-omppg/ISP Population/Final Datasets/ISP_Pop_{year}q{quarter}.parquet",index=False)
-
-
-### some checks
-
-#sasfile = pd.read_sas("s3://alpha-omppg/ISP Population/Final Datasets/isp_pop_2024q1.sas7bdat",encoding='latin1')
-#sasfile.shape
-
-#sasfile.info(verbose=True,show_counts=True)
-#ispLastRev.info(verbose=True,show_counts=True)
-
-isp = pd.read_parquet("s3://alpha-omppg/ISP Population/final-data/ISP_Pop_2024q1.parquet")
-isp = isp[['NOMIS_ID','SURNAME','DOS','TARIFF_EXPIRY_DATE','SENTENCESTATUS','CUSTODY_TYPE_DESCRIPTION','STATUS_DESCRIPTION','DETERMINATE_FLAG','DATEOFBIRTH','OFFENCE','INDEX_OFFENCE_DESCRIPTION','PRISONNAME','PPUD_PRISON','AGE','AGEBAND','CRO_NO','CSRA_LEVEL','DATEOFRELEASE','DRUG_OFFENCES','PRISONCODE','ETHNICGROUP','EXTRACTDATE','F2052START','F2052_STATUS','FIRSTCONVICTED','FIRSTMOVEMENT','FIRSTSENTENCED','FORENAME','IEP','IMPRISONMENT_STATUS_CATEGORY','INDEFINITE_SENTENCE','LAST_MOVEMENT_DATE','LAST_MOVEMENT_DIRECTION','LAST_MOVEMENT_FROM','LAST_MOVEMENT_REASON','LAST_MOVEMENT_TO','LAST_MOVEMENT_TYPE','CELLLOCATION','MAIN_OFFENCE_STATUTE','MARITALSTATUS','MATERNITY_ONGOING_OR_INACTIVE','MATERNITYSTATUS','NATIONALITYNAME','GENDER','PNCID_NO','RELIGION','SEC_CAT_ASSESSMENT_DATE','SECURITYCATEGORY','SEX_OFFENDER_REGISTER','SEXUAL','VIOLENT','PRISONGENDER','PRISONPGDREGION','FNPSTATUS','MAINFUNCTION','PRISONPROBATIONREGION','PRISONEDREGION','SECCATSUMMARY','OFFENCEGROUP','IMPRISONMENTSTATUSSHORT','OFFGRP4','OFFGRP2','PROGRESSION_REGIME','OPEN_TYPE','CONDITIONS','EXCLUDED_FROM_OPEN','WHOLE_LIFE','LATEST_RELEASE_DATE','PRISON_NUMBER','DETAILED_OFFENCE_GROUP','TARIFF_PAST','TARIFF_MONTHS','TARIFF_YEARS','SERVED_MONTHS','SERVED_YEARS','TARIFFS_SERVED','OVERTARIFF_MONTHS','OVERTARIFF_YEARS','SENTENCED_AGE','TARIFF_IN_QUARTER','TARIFF','FIRST_RELEASE_DATE','FIRST_RELEASE_CONDITIONS','YEARS_BEFORE_RELEASE','MONTHS_BEFORE_RELEASE','LAST_RELEASE_DATE','LAST_RELEASE_TYPE','LAST_RELEASE_CONDITIONS','LAST_LICENCE_REVOKE_DATE','LAST_RTC_DATE','LAST_RECALLNUM','LAST_RECALL_NUMBER_OF_REASONS','LAST_RECALL_REASONS','LAST_RECALL_AREA','LAST_RECALL_FURTHER_CHARGE','ISP_STATUS','PPUD_STATUS','DAYS_RECALLED','MONTHS_RECALLED','CUSTODY_STAGE','ISP_TYPE','LAST_REVIEW_REASON','LAST_REVIEW_RESULT','LAST_REVIEW_DATE','LAST_SUBSEQUENT_OUTCOME','LAST_SUBSEQUENT_DATE','LAST_REVIEWNUM','MAX_PROGRESS','PROGRESS_DATE','OPEN_REVIEWNUM','LAST_OPEN_DATE','PREVIOUS_PROGRESS']]
-isp[isp['ISP_STATUS'].str.contains('IPP|DPP',case=False)].to_excel("IPPs_31March_2024.xlsx",index=None)
+show(ipp_rape.sample(50), buttons=["excelHtml5"])
