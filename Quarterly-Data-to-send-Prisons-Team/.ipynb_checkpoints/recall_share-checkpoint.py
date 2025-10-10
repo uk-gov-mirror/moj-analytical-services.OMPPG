@@ -17,7 +17,7 @@ import importlib
 
 # import my predefined functions, akin to macros in SAS
 
-sys.path.append('/home/jovyan/OMPPG/Macro Library')
+sys.path.append('/home/jovyan/OMPPG/Macro-Library')
 # from my_log import my_log
 import Out_of_bounds_dates
 # import prepareMatch
@@ -34,12 +34,14 @@ pd.set_option('display.max_colwidth', None)
 
 # Ensures no wrapping of cell contents - run it separately
 
+"""
 %%html
 <style>
 .dataframe td {
     white-space: nowrap;
 }
 </style>
+"""
 
-recalls = pd.read_parquet("s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2024q1.parquet")
-recalls.to_excel('recalls_final_2024q1.xlsx',index=False)
+recalls = pd.read_parquet("s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2025q1.parquet")
+recalls.to_excel('recalls_final_2024q3.xlsx',index=False)

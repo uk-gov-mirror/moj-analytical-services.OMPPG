@@ -113,7 +113,7 @@ query = """SELECT a.*,
                   (a.TARIFF_EXPIRY_DATE = b.TARIFF_EXPIRY_DATE AND a.TARIFF_EXPIRY_DATE IS NOT NULL)"""
 
 gpp2 = duckdb.sql(query).df()
-gpp2.shape # 29610, 29573, 29,188 28932,29077
+gpp2.shape # 29762, 29610, 29573, 29,188 28932,29077
 
 # check bizare reviw dates
 
@@ -123,7 +123,7 @@ gpp2['REVIEW_DATE'].isna().sum() # 0
 gpp2[gpp2['REVIEW_DATE'].dt.normalize() <= gpp2['DOS'].dt.normalize()][['FILE_REFERENCE','FAMILY_NAME','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE']].head()
 
 gpp2 = gpp2[gpp2['REVIEW_DATE'].dt.normalize() > gpp2['DOS'].dt.normalize()]
-gpp2.shape # 29605, 29568, 28923,29067
+gpp2.shape # 29756, 29605, 29568, 28923,29067
 
 gpp2['U_SENT'] = gpp2['TARIFF_EXPIRY_DATE'].astype(str) + gpp2['PRISON_NUMBER'].astype(str)
 
@@ -373,11 +373,11 @@ query = """SELECT a.*,
             ON a.NOMIS_ID = b.NOMIS_ID"""
 
 gppMatched = duckdb.sql(query).df()
-gppMatched.shape # 10960, 10964, 10920
+gppMatched.shape # 10935, 10960, 10964, 10920
 
 gppMatched = gppMatched.sort_values(['NOMIS_ID', 'LAST_SUBSEQUENT_DATE'],ascending=[True,False])
 gppMatched = gppMatched.drop_duplicates('NOMIS_ID')
-gppMatched.shape # 10932,109340,10919
+gppMatched.shape # 10934, 10932,109340,10919
 
 retain = ['NOMIS_ID', 'PRISON_NUMBER', 'SURNAME', 'FORENAME', 'DATEOFBIRTH', 'DOS', 'TARIFF_EXPIRY_DATE', 'TARIFF_PAST', 'MONTHS_TO_TARIFF_EXPIRY', 'FOUR_YRS_MOST_TO_TED', 'TARIFF', 'ISP_STATUS', 'EXCLUDED_FROM_OPEN', 'PROGRESSION_REGIME', 'OPEN_TYPE', 'CONDITIONS', 'WHOLE_LIFE', 'OFFENCEGROUP', 'OFFENCE', 'PRISONNAME', 'CELLLOCATION', 'PRISONPGDREGION', 'SEC_CAT_LONG', 'IEP', 'F2052_STATUS', 'F2052START', 'AGEBAND', 'ETHNICITY', 'OFFENDER_GENDER', 'NATIONALITYNAME', 'FNPSTATUS', 'LATEST_RELEASE_DATE', 'TARIFF_YEARS', 'SERVED_YEARS', 'OVERTARIFF_MONTHS', 'SENTENCED_AGE', 'LAST_REVIEW_RESULT', 'LAST_REVIEW_REASON', 'LAST_REVIEW_REASON_2', 'LAST_SUBSEQUENT_DATE', 'NUM_POST_REVS', 'EXTRACTDATE', 'AGE', 'TARIFF_MONTHS', 'SERVED_MONTHS', 'OVERTARIFF_YEARS']
 

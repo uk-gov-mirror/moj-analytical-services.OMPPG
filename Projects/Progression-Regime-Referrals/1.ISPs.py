@@ -45,14 +45,15 @@ def strip_blanks(df):
         df[col] = df[col].apply(lambda x: x.strip() if (isinstance(x, str) and not x.isspace()) else x) #
 #----------------------------------SOme global variables are from 4 Releases_to_Recall program
 
-month = str(3).zfill(2) # pads a signle number with a leading zero, like '9' -> 09'
-day = 31
+month = str(6).zfill(2) # pads a signle number with a leading zero, like '9' -> 09'
+day = 30
 
 year = 2025
-quarter = 1
+quarter = 2
 #----------------------------------Import NOMIS data
 
 pop = pd.read_csv(f"s3://alpha-omppg/data-central/PR_referrals/DAO_{year}_{month}_{day}.csv")
+
 pop.columns = pop.columns.str.upper()
 pop['SENTENCESTATUS'].value_counts()
 

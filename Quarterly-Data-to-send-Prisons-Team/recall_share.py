@@ -43,5 +43,5 @@ pd.set_option('display.max_colwidth', None)
 </style>
 """
 
-recalls = pd.read_parquet("s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2024q4.parquet")
+recalls = pd.read_parquet("s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2025q1.parquet")
 recalls.to_excel('recalls_final_2024q3.xlsx',index=False)

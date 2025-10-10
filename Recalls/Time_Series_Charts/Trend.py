@@ -48,8 +48,8 @@ pd.set_option('display.max_colwidth', None)
 
 # Get last final recall data for the last 5 quarters----------------------------------------------------------------------
 
-rec1 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2024q3.parquet')
-rec2 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2024q4.parquet')
+rec1 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2024q4.parquet')
+rec2 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2025q1.parquet')
 
 # uppercase the headers
 for df in [rec1,rec2]:

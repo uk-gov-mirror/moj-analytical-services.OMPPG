@@ -6,3 +6,5 @@
 
 # Ignore Parquet files
 *.parquet
+# Ignore .zip
+*.zip

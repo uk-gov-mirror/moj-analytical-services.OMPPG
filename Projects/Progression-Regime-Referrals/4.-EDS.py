@@ -3,8 +3,8 @@ eds = pd.read_csv(f"s3://alpha-omppg/data-central/PR_referrals/DAO_{year}_{month
 eds.columns = eds.columns.str.upper()
 eds['SENTENCESTATUS'].value_counts()
 
-#pop[pop['PED'].notna()]['PED'].head()
-#pop[pop.columns[:100]].info()
+#eds[eds['PED'].notna()]['PED'].head()
+#eds[eds.columns[:100]].info()
 
 eds['PED'] = pd.to_datetime(eds['PED'],dayfirst=True)
 

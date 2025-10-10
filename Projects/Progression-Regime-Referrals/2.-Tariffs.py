@@ -127,14 +127,14 @@ query = """SELECT DISTINCT a.*,
                        a.NOMIS_ID = b.PN_END)"""
 
 ispTariffs = duckdb.sql(query).df()
-ispTariffs.shape # 22936, 22218
+ispTariffs.shape # 22811, 22936, 22218
 
 # subset
 ispTariffs = ispTariffs[(ispTariffs['SENTENCESTATUS'].isin(['(5) IPP','(6) Life'])) | 
                         (~(ispTariffs['CUSTODY_TYPE_DESCRIPTION'].isna())) | 
                         (~(ispTariffs['TARIFF_EXPIRY_DATE'].isna()))]
 
-ispTariffs.shape # 11323, 11325,11336, 11352, 11356
+ispTariffs.shape # 11300, 11323, 11325,11336, 11352, 11356
 
     # Rate quality of matches
     
@@ -177,7 +177,7 @@ ispTariffs = ispTariffs.sort_values(by=['NOMIS_ID','MATCH','SENT_RANK','CUS_PROP
 
 ispTNodup = ispTariffs.drop_duplicates(subset='NOMIS_ID', keep ='first').copy()
 
-ispTNodup.shape # 10963,10976, 10993, 11000
+ispTNodup.shape # 10934, 10963,10976, 10993, 11000
 
 #----------------------------------Add detailed offence groups
 

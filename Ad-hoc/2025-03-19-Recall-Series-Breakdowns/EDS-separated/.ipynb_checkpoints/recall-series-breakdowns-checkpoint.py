@@ -67,7 +67,7 @@ def dateOutOfBoundsColumn(dataset,value): # pass in the out-of-bounds date
             display(dataset[hmm][cols_to_keep])
             break
 
-dateOutOfBoundsColumn(recalls,'3017-03-30')
+# dateOutOfBoundsColumn(recalls,'3017-03-30')
 
 # Function to show table in my preferred way
 def show_data(data):
@@ -117,7 +117,7 @@ def conCatRecallDatasets(years,quarters):
     return recalls
 
 recalls = conCatRecallDatasets(years,quarters)
-len(recalls) # 240817
+len(recalls) # 251218, 240817
 
 recalls['LICENCE_REVOKE_DATE'].dt.year.value_counts(dropna=False).sort_index()
 
@@ -161,6 +161,9 @@ recalls['FIXED_OR_STANDARD'] = 'Standard'
 recalls.loc[ftrMask,'FIXED_OR_STANDARD']='Fixed'
 
 recalls['FIXED_OR_STANDARD'].value_counts(dropna=False).sort_index()
+
+recalls.pivot_table(index = ['FIXED_OR_STANDARD','RECALL_TYPE_DESCRIPTION'],columns = 'YEAR',
+                   aggfunc='size',fill_value=0)
 
 summary_table = recalls.pivot_table(
     index = ['YEAR','MONTH_NUM','MONTH'],
