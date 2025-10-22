@@ -9,11 +9,12 @@ def prepareMatch(df):
     Author: Eric Nyame, based on previous work by Phil Hall using SAS
     """
     data = df.copy()
+    
     # A Capture prison number correctly
     
         # remove all white spaces in prison number
         
-    data['PN_TRIM'] = data['PRISON_NUMBER'].str.replace('\s+',"",regex = True)
+    data['PN_TRIM'] = data['PRISON_NUMBER'].str.replace(r'\s+',"",regex = True)
     data['PN_LENGTH'] = data['PN_TRIM'].str.len()
     
         # select first 6 characters of prison number
@@ -30,8 +31,8 @@ def prepareMatch(df):
     # B Capture nomis id correctly
     
         # remove all white spaces in nomis id
-        
-    data['NOMS_TRIM'] = data['NOMS_ID'].str.replace('\s+',"",regex = True)
+
+    data['NOMS_TRIM'] = data['NOMS_ID'].str.replace(r'\s+',"",regex = True)
     data['NOMS_LENGTH'] = data['NOMS_TRIM'].str.len()
     
          # select first 7 characters of nomis id

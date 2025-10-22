@@ -3,56 +3,7 @@ GOAL: ADD FIRST RELEASE INFORMATION FOR QUARTERLY ISP POP FOR OMSQ
 By Eric Nyame, 05/02/2024
 """
 
-#---------------------------------- Import Packages
-
-import pandas as pd
-import numpy as np
-import sys
-import duckdb
-# print(duckdb.__version__)
-import importlib
-
-# import re
-
-# from dateutil.relativedelta import relativedelta
-
-# import my predefined functions, akin to macros in SAS
-
-sys.path.append('/home/jovyan/OMPPG/Macro Library')
-# from my_log import my_log
-import Out_of_bounds_dates
-import prepareMatch
-importlib.reload(prepareMatch)
-import openMatch
-importlib.reload(openMatch)
-import TimeDiffs
-import tariff_groups
-importlib.reload(tariff_groups)
-
-# Set display options
-
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
-pd.set_option('display.max_colwidth', None)
-
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
-
-# function to remove trailing and leading blanks
-def strip_blanks(df):
-    for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if (isinstance(x, str) and not x.isspace()) else x) #
-        
-
 #----------------------------------Match to ISP Population Dataset on either NOMIS number, Prison Number or Name and 
-
-duckdb.default_connection.execute("SET GLOBAL pandas_analyze_sample=100000")
 
 query6 = """SELECT DISTINCT a.*,                                    
                         b.RELEASE_DATE AS LAST_RELEASE_DATE, 
@@ -78,7 +29,7 @@ query6 = """SELECT DISTINCT a.*,
                         a.PRISON_NUMBER = b.PRISON_NUMBER AND a.PRISON_NUMBER IS NOT NULL"""
 
 ispRelMatched = duckdb.sql(query6).df()
-ispRelMatched.shape # 13420, 13406, 13354, 13380
+ispRelMatched.shape # 13483, 13420, 13406, 13354, 13380
 
 #---------------------------------- Rate quality of the match
 def calculate_match(row):
@@ -114,14 +65,14 @@ ispRelMatched['MATCH'] =ispRelMatched.apply(calculate_match, axis=1)
 ispRelMatched = ispRelMatched.sort_values(by=['MATCH','LAST_RELEASE_DATE'],ascending = [False,False])
 
 ispLastRel =ispRelMatched.drop_duplicates(subset='NOMIS_ID', keep ='first').copy()
-ispLastRel.shape # 10881, 10899, 10902, 10939,10961, 10995
+ispLastRel.shape # 10886, 10881, 10899, 10902, 10939, 10961, 10995
 
 #---------------------------------- drop some variables
 
 ispLastRel = ispLastRel.drop(['MATCH', 'SURNAME_PPUD', 'DOB_PPUD', 'INIT_PPUD', 'PN2', 'PN_TRIM','PN_START', 
                                         'PN_END', 'NOMS_ID_PPUD', 'NOMS_TRIM', 'NOMS_START', 'NOMS_END'],axis=1)
 
-ispLastRel.shape # 
+ispLastRel.shape # 10886, 10881, 10899, 10902, 10939, 10961, 10995
 
 #---------------------------------- Save
 ispLastRel.to_parquet("ispLastRel.parquet")

@@ -42,7 +42,7 @@ def tariff_groups(df):
     data.loc[ipp & ~(tmiss | t2 | t2_4 | t4_6 | t6_10),'TARIFF'] = 'e Greater than 10 years'
     
     life = data['SENTENCESTATUS'] == '(6) Life'
-    wl = data['WHOLE_LIFE'] == True
+    wl = data['WHOLE_LIFE'].fillna(False)
     t10 = (
                 (data['TARIFF_YEARS'] < 10) | 
                 (

@@ -3,55 +3,10 @@ GOAL: ADD LAST RECALL INFORMATION FOR QUARTERLY ISP POP FOR OMSQ
 By Eric Nyame, 05/02/2024
 """
 
-#---------------------------------- Import Packages
-
-import pandas as pd
-import numpy as np
-import sys
-import duckdb
-# print(duckdb.__version__)
-import importlib
-
-# import re
-
-# from dateutil.relativedelta import relativedelta
-
-# import my predefined functions, akin to macros in SAS
-
-sys.path.append('/home/jovyan/OMPPG/Macro Library')
-# from my_log import my_log
-import Out_of_bounds_dates
-import prepareMatch
-importlib.reload(prepareMatch)
-import openMatch
-importlib.reload(openMatch)
-import TimeDiffs
-import tariff_groups
-importlib.reload(tariff_groups)
-
-# Set display options
-
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
-pd.set_option('display.max_colwidth', None)
-
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
-
-# function to remove trailing and leading blanks
-def strip_blanks(df):
-    for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x) #
-        
-#----------------------------------Set globals
-
 #----------------------------------Match to ISP Population Dataset on either NOMIS number, Prison Number or Name and 
+
+import duckdb
+
 
 isp_recalls_final = pd.read_parquet(f"s3://alpha-omppg/Recalls/final_data/recalls/isp/isp_recalls_{year}q{quarter}.parquet")
 
@@ -85,7 +40,7 @@ query7 = """SELECT DISTINCT a.*,
                         (a.PRISON_NUMBER = b.PRISON_NUMBER AND a.PRISON_NUMBER IS NOT NULL)"""
 
 ispRecMatched = duckdb.sql(query7).df()
-ispRecMatched.shape # 10887, 10903, 10908, 10949
+ispRecMatched.shape # 10890, 10887, 10903, 10908, 10949
 
 #---------------------------------- Rate quality of the match
 def calculate_match(row):
@@ -121,7 +76,7 @@ ispRecMatched['MATCH'] =ispRecMatched.apply(calculate_match, axis=1)
 ispRecMatched = ispRecMatched.sort_values(by=['MATCH','LAST_RTC_DATE'],ascending = [False,False])
 
 ispLastRec =ispRecMatched.drop_duplicates(subset='NOMIS_ID', keep ='first').copy()
-ispLastRec.shape # 10899, 10939
+ispLastRec.shape # 10886, 10899, 10939
 
 #----------------------------------Add final variables
 
@@ -133,7 +88,7 @@ cust_type_to_keep = ( (ispLastRec['SENTENCESTATUS'].isin(['(5) IPP','(6) Life'])
                 )
 
 ispLastRec = ispLastRec[cust_type_to_keep]
-ispLastRec.shape #10881, 10961
+ispLastRec.shape # 10886, 10881, 10961
 
     # Classify ISPs based on NOMIS sentence status, adding sentence information to recalls from PPUD
         
@@ -203,7 +158,44 @@ ispLastRec.loc[~(nomis_recall_cond) & (ispLastRec['SENTENCESTATUS'].str.contains
 
 ispLastRec = ispLastRec.drop(['MATCH', 'SURNAME_PPUD', 'DOB_PPUD', 'INIT_PPUD', 'PN2', 'PN_TRIM','PN_START','PN_END', 'NOMS_ID_PPUD', 'NOMS_TRIM', 'NOMS_START', 'NOMS_END'],axis=1)
 
-ispLastRec.shape # 10899, 10902, 10939
+ispLastRec.shape # 10886, 10899, 10902, 10939
 ispLastRec.head()
+
+# Bring in terminated IPP cases. These should be removed from ISP_STATUS = Recalled_IPP
+ipp_terminated = pd.read_excel(f"s3://alpha-omppg/isp-population/PPUD/2025Q3/PPUD_IPP_Terminations_30_Sep_2025.xlsx")
+
+# keep unique NOMS_IDs only, excluding missing
+ipp_terminated = ipp_terminated.drop_duplicates(subset='NOMS_ID', keep='first')
+ipp_terminated.shape # 2758
+
+ipp_terminated = prepareMatch.prepareMatch(ipp_terminated)
+ipp_terminated.head()
+
+ispLastRec.shape # 10886, 10899, 10902, 10939
+
+queryT = """SELECT DISTINCT a.*, 
+                            b.IPP_TERMINATED_FLAG 
+      
+                    FROM ispLastRec AS a LEFT JOIN ipp_terminated AS b
+
+                    ON (a.NOMIS_ID = b.NOMS_ID OR
+                       a.NOMIS_ID = b.NOMS_TRIM OR
+                       a.NOMIS_ID = b.NOMS_START OR
+                       a.NOMIS_ID = b.NOMS_END OR
+                       a.NOMIS_ID = b.PRISON_NUMBER OR
+                       a.NOMIS_ID = b.PN_TRIM OR
+                       a.NOMIS_ID = b.PN_START OR
+                       a.NOMIS_ID = b.PN_END)"""
+
+ispLastRec2 = duckdb.sql(queryT).df()
+ispLastRec2.shape # 10886
+
+# Is there a match?
+ispLastRec2['IPP_TERMINATED_FLAG'].notna().sum() # 4
+ispLastRec2[ispLastRec2['IPP_TERMINATED_FLAG'].notna()][['NOMIS_ID','SURNAME','ISP_STATUS','IPP_TERMINATED_FLAG']]
+
+# Remove terminated IPPs from Recalled IPP group
+ispLastRec2 = ispLastRec2[~ispLastRec2['NOMIS_ID'].isin(['A3688AJ', 'A3891AD'])] # 2 terminated cases now removed
+ispLastRec2.shape # 10884
 #---------------------------------- Save
-ispLastRec.to_parquet("ispLastRec.parquet")
+ispLastRec2.to_parquet("ispLastRec.parquet")

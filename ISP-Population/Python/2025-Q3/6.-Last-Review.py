@@ -5,53 +5,10 @@ By Eric Nyame, 14/04/2024
 
 #---------------------------------- Import Packages
 
-import pandas as pd
-import numpy as np
-import sys
-import duckdb
-# print(duckdb.__version__)
-import importlib
 
-# import re
+gpp = pd.read_excel(f's3://alpha-omppg/isp-population/PPUD/{year}Q{quarter}/PPUD_ISP_GPP_{year}Q{quarter}_new.xlsx')
 
-# from dateutil.relativedelta import relativedelta
-
-# import my predefined functions, akin to macros in SAS
-
-sys.path.append('/home/jovyan/OMPPG/Macro Library')
-# from my_log import my_log
-import Out_of_bounds_dates
-import prepareMatch
-importlib.reload(prepareMatch)
-import openMatch
-importlib.reload(openMatch)
-import TimeDiffs
-import tariff_groups
-importlib.reload(tariff_groups)
-
-# Set display options
-
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
-pd.set_option('display.max_colwidth', None)
-
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
-
-#---------------------------------- Load GPP data
-
-gpp_ipp = pd.read_excel(f's3://alpha-omppg/isp-population/PPUD/{year}Q{quarter}/PPUD_IPP_GPP_{year}Q{quarter}.xls')
-gpp_life = pd.read_excel(f's3://alpha-omppg/isp-population/PPUD/{year}Q{quarter}/PPUD_Life_GPP_{year}Q{quarter}.xls')
-
-gpp = pd.concat([gpp_ipp,gpp_life],ignore_index = True)
-
-gpp.shape # 69588, 68225
+gpp.shape # 71000, 69588, 68225
 
 gpp = gpp.drop_duplicates()
 
@@ -72,7 +29,7 @@ for col in dateColsToChange:
     check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(gpp,col)],axis = 0,ignore_index=True)
 
 check1= check1[dateColsToChange + [col for col in gpp.columns if col not in dateColsToChange]]
-check1.shape #6 cases, out of bounds years
+check1.shape #4
 check1
 
 # Make two corrections to dates
@@ -118,7 +75,7 @@ query8 = """SELECT a.*
                   (a.TARIFF_EXPIRY_DATE = b.TARIFF_EXPIRY_DATE AND a.TARIFF_EXPIRY_DATE IS NOT NULL)"""
 
 gpp2 = duckdb.sql(query8).df()
-gpp2.shape # 29600, 29427, 29375, 29474, 29421, 29616
+gpp2.shape # 29772, 29600, 29427, 29375, 29474, 29421, 29616
 
 # check bizare reviw dates
 
@@ -128,7 +85,7 @@ gpp2['REVIEW_DATE'].isna().sum() # 0
 gpp2[gpp2['REVIEW_DATE'].dt.date <= gpp2['DOS'].dt.date][['FILE_REFERENCE','FAMILY_NAME','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE']].head()
 
 gpp2 = gpp2[gpp2['REVIEW_DATE'].dt.date > gpp2['DOS'].dt.date]
-gpp2.shape # 29594, 29422, 29370,29466,29605
+gpp2.shape # 29765, 29594, 29422, 29370, 29466, 29605
 
 gpp2['U_SENT'] = gpp2['TARIFF_EXPIRY_DATE'].astype(str) + gpp2['PRISON_NUMBER'].astype(str)
 
@@ -293,11 +250,11 @@ gpp3 = gpp2[~(gpp2['REVIEW_RESULT'].isna())].copy()
 
 gpp3 = gpp3.drop(['DECISION','PROPER'], axis=1)
 
-gpp3.shape # 26535, 26417, 29370, 26376,26290
+gpp3.shape # 26827, 26535, 26417, 29370, 26376, 26290
 
 gpp3.loc[gpp3['SUBSEQUENT_OUTCOME_ACTUAL'].isna(),'SUBSEQUENT_OUTCOME_ACTUAL'] = gpp3['REVIEW_DATE']
 
-gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False).sum() # 10
+gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False).sum() # 8
 
 # gpp3[gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False)][['FILE_REFERENCE','U_SENT','SUBSEQUENT_OUTCOME_ACTUAL','FAMILY_NAME','DOS','REVIEW_DATE','TARIFF_EXPIRY_DATE','REVIEW_STATUS_DESCRIPTION','REVIEW_RESULT']].head()
 
@@ -315,7 +272,7 @@ gpp3[gpp3.duplicated(subset=['U_SENT', 'REVIEW_DATE'], keep=False)][['FILE_REFER
 gpp3 = gpp3.drop_duplicates(subset=['U_SENT','REVIEW_DATE'])  # keeps only the first entries with fewer missing data
 gpp3 = gpp3.drop(columns=(['numb1','numb2','numb3','numb']))
 
-gpp3.shape # 26531, 26412,29352,26370, 26281
+gpp3.shape # 26823, 26531, 26412,29352,26370, 26281
 
 # ---------------------------------Identify pre, post and recall reviews
 
@@ -398,7 +355,7 @@ query9 = """SELECT DISTINCT a.*,
                             b.PROGRESS_DATE, 
                             b.OPEN_REVIEWNUM, 
                             b.LAST_OPEN_DATE
-            FROM ispLastRec AS a LEFT JOIN gpp3 AS b
+            FROM ispLastRec2 AS a LEFT JOIN gpp3 AS b
             ON b.SUBSEQUENT_OUTCOME_ACTUAL < a.EXTRACTDATE AND 
                 (b.REVIEW_REASON_DESCRIPTION = 'On Tariff' OR
                  b.REVIEW_REASON_DESCRIPTION = 'On/Post Tariff' OR
@@ -408,13 +365,13 @@ query9 = """SELECT DISTINCT a.*,
                 (a.TARIFF_EXPIRY_DATE = b.TARIFF_EXPIRY_DATE)"""
 
 gppMatched = duckdb.sql(query9).df()
-gppMatched.shape # 31285, 33797
+gppMatched.shape # 31656, 31285, 33797
 
     # deduplicate by latest review date
 gppMatched = gppMatched.sort_values(by=['LAST_SUBSEQUENT_DATE'],ascending = False)
 
 ispLastRev =gppMatched.drop_duplicates(subset='NOMIS_ID', keep ='first').copy()
-ispLastRev.shape # 10881,10899, 10902, 10939, 10961
+ispLastRev.shape # 10884, 10881, 10899, 10902, 10939, 10961
 
 #----------------------------------Add final variables
 

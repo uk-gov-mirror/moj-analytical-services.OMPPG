@@ -8,3 +8,50 @@
 *.parquet
 # Ignore .zip
 *.zip
+
+# Ignore folder
+z-environments/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore virtual environment folders
+venv/
+env/
+.venv/
+.env/
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+# Ignore log files
+*.log
+# Ignore system files
+.DS_Store
+Thumbs.db
+# Ignore compiled files
+*.obj
+*.exe
+*.dll
+*.class
+*.so
+# Ignore backup files
+*~.bak
+*.swp
+# Ignore coverage reports
+.coverage
+htmlcov/
+# Ignore test output
+test_output/
+# Ignore build directories
+build/
+dist/
+.eggs/

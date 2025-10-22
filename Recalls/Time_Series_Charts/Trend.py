@@ -37,19 +37,11 @@ pd.options.display.max_columns = None
 pd.options.display.max_rows = None
 pd.set_option('display.max_colwidth', None)
 
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
 
 # Get last final recall data for the last 5 quarters----------------------------------------------------------------------
 
-rec1 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2024q4.parquet')
-rec2 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2025q1.parquet')
+rec1 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2025q1.parquet')
+rec2 = pd.read_parquet('s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_2025q2.parquet')
 
 # uppercase the headers
 for df in [rec1,rec2]:
@@ -139,7 +131,7 @@ recalls['ORA'].unique()
 
 # Tabulate - Sentence Types
 
-sentence_summary = recalls.groupby(['SENTENCE', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')]).size().reset_index(name='Total')
+sentence_summary = recalls.groupby(['SENTENCE', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')],observed=False).size().reset_index(name='Total')
 
 
 show(sentence_summary.pivot_table(index ='SENTENCE',columns = 'LICENCE_REVOKE_DATE',values = 'Total').reset_index(),
@@ -149,7 +141,7 @@ show(sentence_summary.pivot_table(index ='SENTENCE',columns = 'LICENCE_REVOKE_DA
 
 recalls['ORA'] = recalls['ORA'].astype(CategoricalDtype(categories=['ORA','Non-ORA'], ordered=True))
 
-ora_summary = recalls.groupby(['ORA', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')]).size().reset_index(name='Total')
+ora_summary = recalls.groupby(['ORA', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')], observed=False).size().reset_index(name='Total')
 
 show(ora_summary.pivot_table(index ='ORA',columns = 'LICENCE_REVOKE_DATE',values = 'Total').reset_index(),
      buttons=["excelHtml5"])
@@ -158,21 +150,21 @@ show(ora_summary.pivot_table(index ='ORA',columns = 'LICENCE_REVOKE_DATE',values
 
 recalls['HDC'] = recalls['HDC'].astype(CategoricalDtype(categories=['Non-HDC','HDC'], ordered=True))
 
-hdc_summary = recalls.groupby(['HDC', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')]).size().reset_index(name='Total')
+hdc_summary = recalls.groupby(['HDC', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')], observed=False).size().reset_index(name='Total')
 
 show(hdc_summary.pivot_table(index ='HDC',columns = 'LICENCE_REVOKE_DATE',values = 'Total').reset_index(),
      buttons=["excelHtml5"])
 
 # Tabulate - Standard fixed including ISPs
 
-std_1_summary = recalls.groupby(['FIXED', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')]).size().reset_index(name='Total')
+std_1_summary = recalls.groupby(['FIXED', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')], observed=False).size().reset_index(name='Total')
 
 show(std_1_summary.pivot_table(index ='FIXED',columns = 'LICENCE_REVOKE_DATE',values = 'Total').reset_index(),
      buttons=["excelHtml5"])
 
 # Tabulate - Standard fixed not including ISPs
 
-std_2_summary = recalls[~recalls['SENTENCE'].isin(['Life sentence', 'IPP'])].groupby(['FIXED', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')]).size().reset_index(name='Total')
+std_2_summary = recalls[~recalls['SENTENCE'].isin(['Life sentence', 'IPP'])].groupby(['FIXED', recalls['LICENCE_REVOKE_DATE'].dt.to_period('Q')], observed=False).size().reset_index(name='Total')
 
 show(std_2_summary.pivot_table(index ='FIXED',columns = 'LICENCE_REVOKE_DATE',values = 'Total').reset_index(),
      buttons=["excelHtml5"])

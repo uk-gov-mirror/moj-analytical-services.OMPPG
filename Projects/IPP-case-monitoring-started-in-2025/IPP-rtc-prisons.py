@@ -13,6 +13,7 @@ import duckdb
 import importlib
 import os
 
+x = 4 +5
 # openpyxl
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, Alignment
@@ -44,6 +45,8 @@ def strip_blanks(df):
     for col in df.select_dtypes(include='object').columns:
         df[col] = df[col].apply(lambda x: x.strip() if (isinstance(x, str) and not x.isspace()) else x) #
         
+3+3
+x
 
 %%html
 <style>

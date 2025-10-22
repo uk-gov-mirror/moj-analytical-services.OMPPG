@@ -3,21 +3,6 @@ GOAL: PRODUCE RE-RELEASES OF ISPS FOR OMSQ. A BY-PRODUCT IS FIRST RELEASES OF IS
 By Eric Nyame, 05/02/2024
 """
 
-#---------------------------------- Import Packages
-
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
-pd.set_option('display.max_colwidth', None)
-
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
-
 
     # Prepare datasets for matching
 recalls_nodup = prepareMatch.prepareMatch(recalls_nodup)
@@ -55,7 +40,7 @@ query2 = """SELECT a.*,
                 )"""
 
 recall_to_release = duckdb.sql(query2).df()
-recall_to_release.shape # 18017, 17746, 17194, 16668,16315,15905
+recall_to_release.shape # 18266, 18017, 17746, 17194, 16668,16315,15905
 
 def calculate_match(row):
    
@@ -85,7 +70,7 @@ recall_to_release.sort_values(by=['MATCH','LAST_LICENCE_REVOKE_DATE'],ascending 
 
 recall_to_release.drop_duplicates(subset=['PRISON_NUMBER','RELEASE_DATE'], keep ='first', inplace = True)
 
-recall_to_release.shape # 18011, 17740, 17188,16663,16310, 15900
+recall_to_release.shape # 18260, 18011, 17740, 17188,16663,16310, 15900
 
 #---------------------------------- Add next recall to releases dataset
 
@@ -116,7 +101,7 @@ query3 = """SELECT a.*,
 recall_to_release2 = duckdb.sql(query3).df()
 
 """
-recall_to_release2.shape # 18900, 18616, 18050,17512,17139, 16707
+recall_to_release2.shape # 19159, 18900, 18616, 18050,17512,17139, 16707
 
 """
 # Apply the function to each row
@@ -133,7 +118,7 @@ recall_to_release2.sort_values(by=['MATCH','NEXT_LICENCE_REVOKE_DATE'],ascending
 recall_to_release2.head()
 
 isp_releases_final = recall_to_release2.drop_duplicates(subset=['UNIQUEREF'], keep ='first')
-isp_releases_final.shape # 18011, 17740, 17188,16663,16310,15900
+isp_releases_final.shape # 18260, 18011, 17740, 17188,16663,16310,15900
 
 isp_releases_final['MATCH'].value_counts(dropna=False)
 
@@ -209,7 +194,7 @@ isp_releases_final.loc[served_mask,'MONTHS_SERVED']  = isp_releases_final.apply(
 
 isp_releases_final =isp_releases_final.drop(['MATCH','UNIQUEREF'],axis=1)
 
-isp_releases_final.shape # 18011, 17740, 17188,16663,16310,15900
+isp_releases_final.shape # 18260, 18011, 17740, 17188,16663,16310,15900
 
 #---------------------------------- Save on Amazon
 

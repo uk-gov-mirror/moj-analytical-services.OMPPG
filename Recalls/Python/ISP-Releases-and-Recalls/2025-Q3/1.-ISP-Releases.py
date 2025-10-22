@@ -12,14 +12,14 @@ import duckdb
 import importlib
 
 # import re
-
 # from dateutil.relativedelta import relativedelta
 
 # import my predefined functions, akin to macros in SAS
 
-sys.path.append('/home/jovyan/OMPPG/Macro-Library')
+sys.path.append('/home/analyticalplatform/workspace/OMPPG/Macro-Library')
 # from my_log import my_log
-import Out_of_bounds_dates
+# import Out_of_bounds_dates
+# import badDates
 import prepareMatch
 #importlib.reload(prepareMatch)
 import openMatch
@@ -32,14 +32,14 @@ pd.options.display.max_columns = None
 pd.options.display.max_rows = None
 pd.set_option('display.max_colwidth', None)
 
-# Ensures no wrapping of cell contents - run it separately
+# Legacy- ignore (it ensures no wrapping of cell contents when in Jupyter Lab)
 
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
+# #%%html
+# <style>
+# .dataframe td {
+#     white-space: nowrap;
+# }
+# </style>
 
 # function to remove trailing and leading blanks
 def strip_blanks(df):
@@ -65,43 +65,38 @@ disch20132015.columns = disch20132015.columns.str.upper()
 
 strip_blanks(disch20132015)
 
-    # Make date columns be of datetime type
-disch20132015['DATEDIS'] = pd.to_datetime(disch20132015['DATEDIS'],dayfirst = True)
-disch20132015['DOB'] = pd.to_datetime(disch20132015['DOB'], dayfirst = True)
+    # Make date columns be of datetime type- original format is yyyy-mm-dd
+disch20132015['DATEDIS'] = pd.to_datetime(disch20132015['DATEDIS'])
+
+disch20132015['DOB'] = pd.to_datetime(disch20132015['DOB'])
 
 #----------------------------------Import PPUD data
 
 releases = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/PPUD_Releases_{year}Q{quarter}.xlsx')
 
-# Legacy PPUD data
-releases_2010 = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/Releases 2010.xls')
-releases_2011 = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/Releases 2011.xls')
-releases_2012 = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/Releases 2012.xls')
-
-    # Check colums - mostly to correct datetime columns appearing as objects
-releases.shape # 20494
-
+"""
+releases.info()
+releases.head()
+releases.shape # 20499
+releases['RELEASE_DATE'].max() # 2025-09-30
+releases['RELEASE_DATE'].min() # 1970-01-01
+"""
 strip_blanks(releases)
 
-"""
-releases.head()
-releases['RELEASE_DATE'].max()
-releases['RELEASE_DATE'].min()
-"""
     # find datetime column showing as an object column 
     # fix the offending date entries and convert to datetime
+"""
 releases.select_dtypes(include=['object']).dtypes
+releases['LATEST_RELEASE_DATE'].head()
+"""
 
 dateColsToChange =['LATEST_RELEASE_DATE'] # only latest_release_date
 
-check1 =pd.DataFrame()
-
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(releases,col)],axis = 0,ignore_index=True)
-
-check1= check1[dateColsToChange + [col for col in releases.columns if col not in dateColsToChange]]
-check1.shape # 5 cases, out of bounds years
-check1
+bad_date_mask = [pd.to_datetime(releases[col], errors='coerce').isna() for col in dateColsToChange] # a list of boolean series
+offending_rows = releases[pd.concat(bad_date_mask, axis=1).any(axis=1)] # rows with bad dates
+offending_rows = offending_rows[dateColsToChange + [col for col in releases.columns if col not in dateColsToChange]]
+offending_rows.shape # 5 cases
+offending_rows
 
 # Make two corrections to dates
 for column in dateColsToChange:
@@ -110,12 +105,10 @@ for column in dateColsToChange:
     # releases[column] = releases[column].astype(str).str.replace("14/09/2997", "14/09/2007") # replaces substring
 
     # Rerun check1 and see if if check1 is empty, then convert all datetime columns to datetime
-    
-check1 =pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(releases,col)],axis = 0,ignore_index=True)
 
-check1.shape # if zero, proceed
+bad_date_mask = [pd.to_datetime(releases[col], errors='coerce').isna() for col in dateColsToChange]   
+offending_rows = releases[pd.concat(bad_date_mask, axis=1).any(axis=1)]
+offending_rows.shape # 0, if zero, proceed
 
     # change certain columns to pandas datetime type
 # releases[releases['PRISON_NUMBER']=='XF5015']
@@ -129,6 +122,10 @@ releases.info()
 
     # check the three legacy ppud files and verify data types
 
+# Legacy PPUD data
+releases_2010 = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/Releases 2010.xls')
+releases_2011 = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/Releases 2011.xls')
+releases_2012 = pd.read_excel(f's3://alpha-omppg/isp_releases/PPUD/Releases 2012.xls')
 # for i in range(2010,2013):
     # print(f'releases_{i} = releases_{i}.convert_dtypes()')
           
@@ -142,63 +139,70 @@ releases_2012.info()
     
 #---------------------------------- Remove Test cases
     # Check 'test' cases and remove
-releases[releases['FAMILY_NAME'].astype(str).str.contains('Test|Lumen',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
+releases[releases['FAMILY_NAME'].astype(str).str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
 
-releases[releases['FIRST_NAMES'].astype(str).str.contains('Test|Lumen',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
+releases[releases['FIRST_NAMES'].astype(str).str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
 
-Test_Case_Mask =  (   (releases['FAMILY_NAME'].astype(str).str.contains('Test',case = False,na = False)) |
-                      (releases['FIRST_NAMES'].astype(str).str.contains('Test',case = False,na = False))
+Test_Case_Mask =  (   (releases['FAMILY_NAME'].astype(str).str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)) |
+                      (releases['FIRST_NAMES'].astype(str).str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False))
                   ) & (releases['FILE_REFERENCE'] != 'T18122')
 
-# releases[Test_Case_Mask][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 24 cases
+# releases[Test_Case_Mask][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 35 cases
 
 releases = releases[~Test_Case_Mask]
 
-releases.shape  # 21605, 20947, 20413,20055
+releases.shape  # 20464
 
+#---------------------------------- Remove 'case' cases
     # Check 'case' cases and remove
-releases[releases['FAMILY_NAME'].str.contains('Case',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 6
+releases[releases['FAMILY_NAME'].str.contains('Case',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 7
 
-releases[releases['FIRST_NAMES'].str.contains('Case',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 6
+releases[releases['FIRST_NAMES'].str.contains('Case',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 7
 
-    # Check 'digit' cases - these are normally good and shoulbe untouched
+    # Check 'digit' cases - these are normally good and should be untouched
 releases[releases['FAMILY_NAME'].str.contains(r'\d')][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] 
 releases[releases['FIRST_NAMES'].str.contains(r'\d')][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] 
 
 #---------------------------------- Drop duplicates
 releases = releases.drop_duplicates()
-releases.shape #21883
+
+releases.shape # 20464
 
 #---------------------------------- Release date must not be before dos
 
-    # check range of years for release date and dos
-#releases['RELEASE_DATE'].dt.year.value_counts(dropna = False).sort_index()
-#releases['DOS'].dt.year.value_counts(dropna = False).sort_index() # some missing data
+"""   
+releases['RELEASE_DATE'].min()
+releases['RELEASE_DATE'].max()
+releases['DOS'].isna().sum() # 70
+releases['RELEASE_DATE'].isna().sum() # 0
 
-    # note some entries with missing DOS
-#releases[releases['DOS'].isna()].head()[['FILE_REFERENCE','FAMILY_NAME','DOS','RELEASE_DATE']]
-
+# note some entries with missing DOS
+releases[releases['DOS'].isna()].head()[['FILE_REFERENCE','FAMILY_NAME','DOS','RELEASE_DATE']]
+"""
     # remove release dates less than dos, excluding missing dos and release cases
+releases = releases.copy()
 
 releases = releases[(releases['RELEASE_DATE'] >= releases['DOS']) |
-                    (releases['DOS'].isna()) |
-                    (releases['RELEASE_DATE'].isna())
-                   ]
-releases.shape # 
+                    (releases['DOS'].isna())
+                    ]
+                   
+releases.shape # 20464
 
 #---------------------------------- Matching PPUD AND NOMIS
 
     # prepare match
 releases2 = prepareMatch.prepareMatch(releases)
 
-    # check its effect on missing prison numbers and 
+"""
+   # check its effect on missing prison numbers and missing noms ids
 releases2[(releases2.PRISON_NUMBER.isna()) | (releases2.NOMS_ID.isna())].head()
 releases2.info()
 
+"""
     # drop the length variables
 releases2.drop(['PN_LENGTH','NOMS_LENGTH'],axis=1,inplace = True)
 
-    # before join, check missing release dates. None missing is helpful
+    # before join, check missing release dates. Should be none
 releases2['RELEASE_DATE'].isna().sum() #0
 disch20132015['DATEDIS'].isna().sum() #0
 
@@ -248,13 +252,13 @@ relsMatched2015 = query_year(releases2,disch20132015,2015)
 releases_extra = releases2[(releases2['RELEASE_DATE'].dt.year < 2013) | 
                            (releases2['RELEASE_DATE'].dt.year > 2015)].copy()
 
-releases_extra.shape # 18486, 18209, 17562,170,053,16700,16282
+releases_extra.shape # 17069
 
 releases_matched = pd.concat([releases_extra,relsMatched2013,relsMatched2014,relsMatched2015],
                              axis = 0,
                              ignore_index=True) # 
 
-releases_matched.shape # 21923, 21645, 20987,20453,20095, 19675
+releases_matched.shape # 20504
 
 #---------------------------------- Rate quality of the match
 
@@ -343,13 +347,13 @@ releases_matched[~releases_matched['DATEDIS'].isna()][releases_matched[~releases
 releases_matched.sort_values(by=['UNIQUEREF','MATCH','DATEDIF'],ascending = [True,False,True], inplace = True)
 
 releases_matched =releases_matched.drop_duplicates(subset='UNIQUEREF', keep ='first')
-releases_matched.shape # 21696, 21423, 20836, 20308,19952, 19539
+releases_matched.shape # 20281
 
 #---------------------------------- Filter and add some variables 
     # Create three masks/
-discode_mask = ~(releases_matched['DISCODE'].isin(['DD', 'DL', 'FR', 'XX']))
+discode_mask = ~releases_matched['DISCODE'].isin(['DD', 'DL', 'FR', 'XX'])
 
-released_from_mask = ~(releases_matched['RELEASED_FROM_DESCRIPTION'].str.contains("N Irish|LASCH|SCOTLAND", na=False))
+released_from_mask = ~releases_matched['RELEASED_FROM_DESCRIPTION'].str.contains("N Irish|LASCH|SCOTLAND", na=False)
 
 dates_mask = (
     (releases_matched['RELEASE_DATE'] >= releases_matched['TARIFF_EXPIRY_DATE']) | 
@@ -361,7 +365,7 @@ dates_mask = (
     # Combine conditions and filter the DataFrame
 Releases_final = releases_matched[discode_mask & released_from_mask & dates_mask].copy()
 
-Releases_final.shape # 21551, 20693, 20165,19811,19399
+Releases_final.shape # 20163
 
     # Add 'I' to end of releasing establishment name for matching to Open prison data*
 Releases_final['CESTCODE2'] = np.where(pd.notna(Releases_final['CESTCODE']),
@@ -389,7 +393,7 @@ Releases_final['LAST_RELEASE_DATE'] = Releases_final.groupby('PRISON_NUMBER')['R
 #---------------------------------- Add release conditions
 
 Releases_final2 = openMatch.openRelease(Releases_final)
-Releases_final2.shape # 21557, 21286, 20699,20170,19816, 19404
+Releases_final2.shape # 20169
 
 #---------------------------------- Remove pre-2013 releases and replace with published 2010-2012 releases
  
@@ -414,6 +418,7 @@ Releases_final2.head()
 Releases_final2['CRO_PNC'] = Releases_final2['CRO_PNC'].astype(str)
 Releases_final2['PRISON_NUMBER'] = Releases_final2['PRISON_NUMBER'].astype(str)
 
+Releases_final2.head()
 #---------------------------------- Temporary Save, delete later
 Releases_final2.to_parquet(f"isp_releases_{year}q{quarter}_step1.parquet")
 

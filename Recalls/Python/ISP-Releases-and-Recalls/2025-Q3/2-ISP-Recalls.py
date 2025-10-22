@@ -32,21 +32,9 @@ pd.options.display.max_columns = None
 pd.options.display.max_rows = None
 pd.set_option('display.max_colwidth', None)
 
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
-
-#----------------------------------globals are from 1.ISP Releases
-
-
 #----------------------------------Import PPUD data
 
-recallsPPUD = pd.read_excel(f's3://alpha-omppg/Recalls/PPUD/ISP/PPUD_ISP_Recalls_{year}Q{quarter}.xls')
+recallsPPUD = pd.read_excel(f's3://alpha-omppg/Recalls/PPUD/ISP/PPUD_ISP_Recalls_{year}Q{quarter}.xlsx')
 
 strip_blanks(recallsPPUD)
 recallsPPUD.info() # 11036, 10855, 10655, 10410,10176, 9906
@@ -55,27 +43,20 @@ recallsPPUD.info() # 11036, 10855, 10655, 10410,10176, 9906
 recallsPPUD.select_dtypes(include=['object']).dtypes # find datetime column showing as an object column
 dateColsToChange =['ISSUE_REVOCATION_TARGET']
 
-        # Check bad dates
-    
-check1 = pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(recallsPPUD,col)],axis = 0,ignore_index=True)
+bad_date_mask = [pd.to_datetime(recallsPPUD[col], errors='coerce').isna() for col in dateColsToChange] # a list of boolean series
+offending_rows = recallsPPUD[pd.concat(bad_date_mask, axis=1).any(axis=1)] # rows with bad dates
+offending_rows = offending_rows[dateColsToChange + [col for col in recallsPPUD.columns if col not in dateColsToChange]]
+offending_rows.shape # 7
+offending_rows
 
-check1= check1[dateColsToChange + [col for col in recallsPPUD.columns if col not in dateColsToChange]]
-check1.head()
-check1.shape #2 cases, mostly missing data represented as '00/01/1900 00:00:00'
-
-    # Make two corrections to dates
+# Make two corrections to dates
 for column in dateColsToChange:
     recallsPPUD.loc[recallsPPUD[column].astype(str).str.contains('2997'), column] = recallsPPUD[column].astype(str).str.replace('2997','2007', regex=True)
     recallsPPUD.loc[recallsPPUD[column]=="00/01/1900 00:00:00", column] = pd.NaT
-    
-    # Rerun check1 and see if if check1 is empty, then convert all datetime columns to datetime
-check1 =pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(recallsPPUD,col)],axis = 0,ignore_index=True)
-    
-check1.shape # if zero, proceed
+
+bad_date_mask = [pd.to_datetime(recallsPPUD[col], errors='coerce').isna() for col in dateColsToChange]   
+offending_rows = recallsPPUD[pd.concat(bad_date_mask, axis=1).any(axis=1)]
+offending_rows.shape # 6 missing, no problm
 
     # change certain columns to pandas datetime type
 
@@ -94,21 +75,21 @@ recallsPPUD = recallsPPUD.rename(columns = {'CUSTODY_TYPE_AT_TIME_OF_RECALL_DESC
 
 #---------------------------------- Remove Test cases
     # Check 'test' cases and remove
-recallsPPUD[recallsPPUD['FAMILY_NAME'].str.contains('Test|Lumen',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
+recallsPPUD[recallsPPUD['FAMILY_NAME'].str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
 
-recallsPPUD[recallsPPUD['FIRST_NAMES'].str.contains('Test',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
+recallsPPUD[recallsPPUD['FIRST_NAMES'].str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']]
 
-recallsPPUD[recallsPPUD['PRISON_NUMBER'].str.contains('Test',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES','PRISON_NUMBER']]
+recallsPPUD[recallsPPUD['PRISON_NUMBER'].str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES','PRISON_NUMBER']]
 
 
-Test_Case_Mask =  (   (recallsPPUD['FAMILY_NAME'].str.contains('Test|Lumen',case = False,na = False)) |
-                      (recallsPPUD['FIRST_NAMES'].str.contains('Test|Lumen',case = False,na = False))
+Test_Case_Mask =  (   (recallsPPUD['FAMILY_NAME'].str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False)) |
+                      (recallsPPUD['FIRST_NAMES'].str.contains('Test|Lumen|Squarepants|Unicorn|Spongebob',case = False,na = False))
                   ) & (recallsPPUD['FILE_REFERENCE'] != 'T18122')
 
 recallsPPUD[Test_Case_Mask][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 2,3 cases
 
 recallsPPUD2 = recallsPPUD[~Test_Case_Mask]
-recallsPPUD2.shape # 11034, 10853, 10653, 10408,10175, 9904
+recallsPPUD2.shape # 11238, 11034, 10853, 10653, 10408,10175, 9904
 
     # Check 'case' cases and remove
 recallsPPUD2[recallsPPUD2['FAMILY_NAME'].str.contains('Case',case = False,na = False)][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 0
@@ -178,10 +159,10 @@ query = """SELECT a.*,
             a.PROBATION_AREA_DESCRIPTION != 'Northern Ireland' """
 
 Recalls_Matched = duckdb.sql(query).df()
-Recalls_Matched.shape # 11035, 10854, 10654, 10409,10176, 9905
+Recalls_Matched.shape # 11239, 11035, 10854, 10654, 10409,10176, 9905
 
 Recalls_Matched[Recalls_Matched['CUSTODYTYPE'].isna()]['CUSTODY_TYPE_AT_RECALL'].unique() # unspecifieds
-Recalls_Matched[Recalls_Matched['PROB_AREA'].isna()]['PROBATION_AREA_DESCRIPTION'].unique() # 0
+Recalls_Matched[Recalls_Matched['PROB_AREA'].isna()][['PROBATION_AREA_DESCRIPTION','NOMS_REGION_DESCRIPTION']].head() # 0
 
 #---------------------------------- Add extra variables
 
@@ -219,14 +200,14 @@ recalls_final[recalls_final['UNIQUEREF'].isna()] #0
 #---------------------------------- deduplicate
 
 recalls_nodup = recalls_final.drop_duplicates(subset='UNIQUEREF', keep ='first').copy()
-recalls_nodup.shape # 11021, 10840, 10640, 10395, 10162, 9891
+recalls_nodup.shape # 11225, 11021, 10840, 10640, 10395, 10162, 9891
 
 #---------------------------------- Identify next recalls dates (not previous recalls)
 
     # Sort the DataFrame by PRISON_NUMBER and LRD in ascending order
 recalls_nodup = recalls_nodup.sort_values(by=['PRISON_NUMBER', 'LICENCE_REVOKE_DATE'])
 
-# Create the NEXT_RELEASE_DATE column by shifting RELEASE_DATE up by one within each PRISON_NUMBER group
+# Create the NEXT_RECALL_DATE column by shifting LICENCE_REVOKE_DATE up by one within each PRISON_NUMBER group
 recalls_nodup['NEXT_RECALL_DATE'] = recalls_nodup.groupby('PRISON_NUMBER')['LICENCE_REVOKE_DATE'].shift(-1)
 
 recalls_nodup.head(50)[['PRISON_NUMBER', 'LICENCE_REVOKE_DATE','NEXT_RECALL_DATE']]

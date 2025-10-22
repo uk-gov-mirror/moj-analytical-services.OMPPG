@@ -17,7 +17,7 @@ import importlib
 
 # import my predefined functions, akin to macros in SAS
 
-sys.path.append('/home/jovyan/OMPPG/Macro-Library')
+sys.path.append('/home/analyticalplatform/workspace/OMPPG/Macro-Library')
 # from my_log import my_log
 import Out_of_bounds_dates
 import prepareMatch
@@ -26,6 +26,7 @@ import openMatch
 # importlib.reload(openMatch)
 import TimeDiffs
 import tariff_groups
+# importlib.reload(tariff_groups)
 
 # Set display options
 
@@ -35,24 +36,24 @@ pd.set_option('display.max_colwidth', None)
 
 # Ensures no wrapping of cell contents - run it separately
 
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
+## %%html
+# <style>
+# .dataframe td {
+#     white-space: nowrap;
+# }
+# </style>
 
 # function to remove trailing and leading blanks
 def strip_blanks(df):
     for col in df.select_dtypes(include='object').columns:
-        df[col] = df[col].apply(lambda x: x.strip() if (isinstance(x, str) and not x.isspace()) else x) #
-        
-#----------------------------------SOme global variables are from 4 Releases_to_Recall program
+        df[col] = df[col].apply(lambda x: x.strip() if (isinstance(x, str) and not x.isspace()) else x)
 
-month = str(6).zfill(2) # pads the number with a leading zero
+#----------------------------------Some global variables are from 4 Releases_to_Recall program
+
+month = str(9).zfill(2) # pads the number with a leading zero
 day = 30
 year = 2025
-quarter = 2
+quarter = 3
 
 #----------------------------------Import NOMIS data
 
@@ -78,31 +79,12 @@ pop = pop[colKeep]
 pop.info()
 #----------------------------------Datetime columns appearing as object type - change
 
-pop.select_dtypes(include=['object']).dtypes # find datetime column showing as an objec
+pop.select_dtypes(include=['object']).dtypes # find datetime column showing as an object
 
 dateColsToChange =['DATE_OF_RELEASE','DOB','EXTRDATE','F2052_START','FIRST_CONVICTED','FIRST_MOVEMENT_DATE','FIRST_SENTENCED','SEC_CAT_ASSESSMENT_DATE','LAST_MOVEMENT_DATE']
 
-check1 =pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(pop,col)],axis = 0,ignore_index=True)
 
-check1= check1[dateColsToChange + [col for col in pop.columns if col not in dateColsToChange]]
-check1.shape # 0
-check1
-
-   # Make corrections to dates
-for column in dateColsToChange:
-    pop.loc[pop[column].astype(str).str.contains('/2525'), column] = pop[column].str.replace('/2525','/2025', regex=True)
-
-# Check again
-check1 =pd.DataFrame()
-for col in dateColsToChange:
-    check1 = pd.concat([check1, Out_of_bounds_dates.date_out_of_bounds(pop,col)],axis = 0,ignore_index=True)
-
-check1= check1[dateColsToChange + [col for col in pop.columns if col not in dateColsToChange]]
-check1.shape # 0
-
-    # change certain columns to pandas datetime type
+# change certain columns to pandas datetime type
 
 for column in dateColsToChange:
     pop[column] = pd.to_datetime(pop[column], dayfirst = True)
@@ -167,13 +149,13 @@ pop[(pop['SENTENCESTATUS'].isin(['', '(9) Unknown'])) &
 
 pop2 = pop_subset(pop)
 
-pop2.shape # 22029, 22086,21413,21080,20722
+pop2.shape # 21150, 22029, 22086,21413,21080,20722
 
 pop2['SENTENCESTATUS'].value_counts(dropna=False)
 
-#---------------------------------- Open condtions
+#---------------------------------- Open conditions
 
-openPrisons = pd.read_excel("~/OMPPG/Supporting-Data/Open-Prisons.xls")
+openPrisons = pd.read_excel("/home/analyticalplatform/workspace/OMPPG/Supporting-Data/Open-Prisons.xls")
 openPrisons.columns = openPrisons.columns.str.upper()
 openPrisons.info()
 
@@ -218,7 +200,7 @@ pop2[(pop2['PRISONCODE'] == 'WII') & (pop2['LOCATION'].isin(['A','O','S']))]['PR
 pop2[(pop2['PRISONCODE'] == 'EEI') & (pop2['LOCATION'].isin(['I','K']))]['PROGRESSION_REGIME'].unique()
 
 # match
-duckdb.default_connection.execute("SET GLOBAL pandas_analyze_sample=100000")
+# duckdb.default_connection.execute("SET GLOBAL pandas_analyze_sample=100000")
 
 query = """SELECT a.*, 
                   b.OPEN, 
@@ -231,7 +213,7 @@ query = """SELECT a.*,
             a.EXTRACTDATE >= b.START AND
             a.EXTRACTDATE <= b.END"""
 openMatched = duckdb.sql(query).df()
-openMatched.shape # 22029, 22086, 21413, 21080, 20722,20870
+openMatched.shape # 21150, 22029, 22086, 21413, 21080, 20722, 20870
 
 # Create conditions variable
 openMatched['CONDITIONS'] = 'Closed'
@@ -247,3 +229,4 @@ openMatched = openMatched.drop(['LOCATION','OPEN','WING'], axis = 1)
 
 #---------------------------------- Temporary Save, delete later
 openMatched.to_parquet(f"openMatched.parquet")
+

@@ -666,3 +666,5 @@ def table_13_func(df, sex_values, ftr_std_values):
                 })
                 
     return pd.DataFrame(summary_list)
+
+print(x)

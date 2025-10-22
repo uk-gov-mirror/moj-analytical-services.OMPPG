@@ -3,18 +3,6 @@ GOAL: PRODUCE RE-RELEASES OF ISPS FOR OMSQ. A BY-PRODUCT IS FIRST RELEASES OF IS
 By Eric Nyame, 02/07/2025
 """
 
-# Ensures no wrapping of cell contents - run it separately
-
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
-
-
-#---------------------------------- Add releases to recalls dataset
-
 # set duckdb sample size to 100000
 duckdb.default_connection.execute("SET GLOBAL pandas_analyze_sample=100000")
 
@@ -36,7 +24,7 @@ query4 = """SELECT a.*,
                 ) AND b.RELEASE_TYPE = 'First Release'"""
 
 release_to_recall = duckdb.sql(query4).df()
-release_to_recall.shape # 11041,10860, 10659, 10414,10180,9909
+release_to_recall.shape # 11246, 11041,10860, 10659, 10414,10180,9909
 
 def calculate_match(row):
    
@@ -69,7 +57,7 @@ release_to_recall['UNIQUEREF']= release_to_recall['PRISON_NUMBER'].astype(str) +
 
 release_to_recall.sort_values(by=['MATCH','FIRST_RELEASE_DATE'],ascending = [False,True], inplace = True)
 release_to_recall.drop_duplicates(subset=['UNIQUEREF'], keep ='first', inplace = True)
-release_to_recall.shape # 11021, 10840, 10640, 10395,10162,9891
+release_to_recall.shape # 11225, 11021, 10840, 10640, 10395,10162,9891
 
 #---------------------------------- Add releases to recalls dataset
 
@@ -92,7 +80,7 @@ query5 = """SELECT a.*,
                 ) """
 
 release_to_recall2 = duckdb.sql(query5).df()
-release_to_recall2.shape # 18771, 18320, 17800,17224,16647,16002
+release_to_recall2.shape # 19307, 18771, 18320, 17800,17224,16647,16002
 
 # Apply the function to each row
 release_to_recall2['MATCH'] = release_to_recall2.apply(calculate_match, axis=1)
@@ -107,7 +95,7 @@ release_to_recall2['UNIQUEREF']= release_to_recall2['PRISON_NUMBER'].astype(str)
 release_to_recall2.sort_values(by=['MATCH','LAST_RELEASE_DATE'],ascending = [False,False], inplace = True)
 
 release_to_recall2 = release_to_recall2.drop_duplicates(subset=['UNIQUEREF'], keep ='first')
-release_to_recall2.shape # 11021, 10840,  10640,10395,10162, 9891
+release_to_recall2.shape # 11225, 11021, 10840, 10640, 10395,10162,9891
 
 #---------------------------------- Add releases to recalls dataset
 
@@ -131,7 +119,7 @@ query6 = """SELECT a.*,
                 ) """
 
 release_to_recall3 = duckdb.sql(query6).df()
-release_to_recall3.shape # 100057, 10874,  10670,10423,10190,9916
+release_to_recall3.shape # 11261, 10057, 10874,  10670,10423,10190,9916
 
 # Apply the function to each row
 release_to_recall3['MATCH'] = release_to_recall3.apply(calculate_match, axis=1)
@@ -146,7 +134,7 @@ release_to_recall3['UNIQUEREF']= release_to_recall3['PRISON_NUMBER'].astype(str)
 release_to_recall3.sort_values(by=['MATCH','NEXT_RELEASE_DATE'],ascending = [False,True], inplace = True)
 
 release_to_recall3 = release_to_recall3.drop_duplicates(subset=['UNIQUEREF'], keep ='first')
-release_to_recall3.shape # 11021, 10840, 10640, 10395,10162, 9891
+release_to_recall3.shape # 11225, 11021, 10840, 10640, 10395,10162, 9891
 
 #--------------MONTHS UNTIL RE-RELEASE
     
@@ -191,7 +179,7 @@ isp_recalls_final['RELEASED_12_MONTHS'] = np.where(rtcAtleast12MthsAgo,
 
 isp_recalls_final.drop(['UNIQUEREF','MATCH'],axis=1,inplace = True)
 
-isp_recalls_final.shape # 11021, 10840, 10640,10395,10162, 9891
+isp_recalls_final.shape # 11225, 11021, 10840, 10640, 10395,10162, 9891
 
 isp_recalls_final.head()
 

@@ -13,12 +13,13 @@ import importlib
 from itables import show
 
 # import re
-
+x = 6 + 5
+x
 # from dateutil.relativedelta import relativedelta
 
 #---------------------------------- Import own predefined functions, akin to macros in SAS
 
-sys.path.append('/home/jovyan/OMPPG/Macro-Library')
+sys.path.append('/home/analyticalplatform/workspace/OMPPG/Macro-Library')
 # from my_log import my_log
 import Out_of_bounds_dates
 # import prepareMatch
@@ -62,13 +63,14 @@ def show_data(data):
 
 # Ensures no wrapping of cell contents - run it separately
 
-%%html
-<style>
-.dataframe td {
-    white-space: nowrap;
-}
-</style>
+## %%html
+# <style>
+# .dataframe td {
+#     white-space: nowrap;
+# }
+# </style>
 
+x = 4 + 6
 
         # Period variables
 quarter = 3 # 1:Jan-Mar, 2:Apr-Jun, 3:Jul-Sep, 4:Oct-Dec
@@ -87,25 +89,36 @@ recalls.shape # 11240
 # Check and remove cases with missing family name
 recalls[recalls['FAMILY_NAME'].isna()] # 0
 
-# custody type
+# Filter to IPP and DPP only
 ippMask =recalls['CUSTODY_TYPE_DESCRIPTION'].isin(['DPP','IPP']) | recalls['CUSTODY_TYPE_AT_TIME_OF_RECALL_DESCRIPTION'].isin(['DPP','IPP'])
 
-recalls = recalls[]
-recalls['CUSTODY_TYPE_AT_TIME_OF_RECALL_DESCRIPTION'].value_counts(dropna=False)
-""" Check duplicate recalls
-recalls[recalls.duplicated(['FILE_REFERENCE','LICENCE_REVOKE_DATE'], keep=False)] # none
-
-recalls[recalls.duplicated(['FAMILY_NAME', 'DOB', 'LICENCE_REVOKE_DATE'], keep=False)] # none
-extras[extras.duplicated(['FAMILY_NAME', 'DOB', 'LICENCE_REVOKE_DATE'], keep=False)] # 0
+recalls = recalls[ippMask]
 
 """
+recalls['CUSTODY_TYPE_AT_TIME_OF_RECALL_DESCRIPTION'].value_counts(dropna=False)
+recalls['CUSTODY_TYPE_DESCRIPTION'].value_counts(dropna=False)
+"""
+recalls = recalls[recalls['CUSTODY_TYPE_AT_TIME_OF_RECALL_DESCRIPTION'].isin(['DPP','IPP'])]
+recalls = recalls[recalls['CUSTODY_TYPE_DESCRIPTION'].isin(['DPP','IPP'])]
+
+""" Check duplicate recalls
+recalls[recalls.duplicated(['FILE_REFERENCE','LICENCE_REVOKE_DATE'], keep=False)] # 2 cases
+
+recalls[recalls.duplicated(['FAMILY_NAME', 'DOB', 'LICENCE_REVOKE_DATE'], keep=False)] # none
+
+"""
+recalls.loc[[3946,4039]] # 2 duplicate cases with same file reference and licence revoke date
+
+# recalls = recalls[~recalls.index.isin([3946,4039])] # drop one of the duplicates
+
 # remove blanks
 strip_blanks(recalls)
-strip_blanks(extras)
 
-    # Convert columns that should be datetime to datetime
-recalls.select_dtypes(include=['object']).dtypes
+# ---------------------------------- Check and change date formats
+# Check date formats and convert to datetime where necessary
+recalls.select_dtypes(include=['object']).dtypes # all good
 
+"""
 dateColsToChange =['RTC_DATE'] # should contain datetime columns with dtype=object
 
         # Check bad dates
@@ -136,7 +149,7 @@ check1.shape # if zero, proceed
 
 for column in dateColsToChange:
     recalls[column] = pd.to_datetime(recalls[column])
-
+"""
 recalls.select_dtypes(include=['datetime64']).dtypes
 
 """ Check 'test' cases and remove
@@ -149,8 +162,8 @@ recalls[recalls['PRISON_NUMBER'].str.contains('Test|Lumen',case = False,na = Fal
 
 """
 
-Test_Case_Mask =  (   (recalls['FAMILY_NAME'].str.contains('Test',case = False,na = False)) |
-                      (recalls['FIRST_NAMES'].str.contains('Test',case = False,na = False))
+Test_Case_Mask =  (   (recalls['FAMILY_NAME'].str.contains('Test|Lumen',case = False,na = False)) |
+                      (recalls['FIRST_NAMES'].str.contains('Test|Lumen',case = False,na = False))
                   ) & (recalls['FILE_REFERENCE'] != 'T18122')
 
 """
@@ -159,7 +172,7 @@ recalls[Test_Case_Mask][['FILE_REFERENCE','FAMILY_NAME','FIRST_NAMES']] # 3 case
 """
 
 recalls = recalls[~Test_Case_Mask]
-recalls.shape # 10102
+recalls.shape # 6938
 
 """Check 'case' or 'digit cases' 
 
@@ -178,12 +191,11 @@ recalls[recalls['FIRST_NAMES'].str.contains(r'\d')][['FILE_REFERENCE','FAMILY_NA
 
 # 5 Look for excess matches and non-Matches and make corrections
 recalls['RESCIND_FLAG'].value_counts()
-extras['RESCIND_FLAG'].value_counts()
 
 # Key for joining
 recalls['TEMP_LRD'] = recalls['LICENCE_REVOKE_DATE'].dt.normalize()
-extras['TEMP_LRD'] = extras['LICENCE_REVOKE_DATE'].dt.normalize()
 
+"""
 #correction
 
 query = """SELECT a.*, 
@@ -211,29 +223,16 @@ query = """SELECT a.*,
 
 recalls_pub = duckdb.sql(query).df()
 recalls_pub.shape # 10103, 10407, 9975,9782, 7415 no dups
+"""
 
 retain_vars =['FILE_REFERENCE','PRISON_NUMBER', 'FAMILY_NAME', 'FIRST_NAMES','DOB',
               'LICENCE_REVOKE_DATE', 'EXTRAS_FAMILY_NAME', 'EXTRAS_FIRST_NAME','EXTRAS_DOB',
               'RTC_DATE', 'RECALL_TYPE_DESCRIPTION', 'FR','PN']
 
     #check duplicates and remove
-recalls_pub[recalls_pub.duplicated(['FILE_REFERENCE','LICENCE_REVOKE_DATE'], keep=False)] # 1
+recalls_pub = recalls.copy()
 
-recalls_pub = recalls_pub[~recalls_pub.index.isin([1152])] # cancelled
-
-    # Check Non-Matches and resolve, which would require you to match again
-    # If the recalls no longer show up on PPUD, then delete
-    
-recalls_pub[recalls_pub['RECALL_REASON_DESCRIPTIONS'].isna()][['FILE_REFERENCE', 'PRISON_NUMBER', 'FAMILY_NAME', 'LICENCE_REVOKE_DATE', 'RTC_DATE', 'RECALL_TYPE_DESCRIPTION','EXTRAS_FAMILY_NAME','PN']] # 2 PN=[23903G, changed to next quarter on PPUD]
-
-recalls_pub = recalls_pub[~recalls_pub.index.isin([6144])]
-
-    # Check recalls which were rescinded after return-to-custody date
-    # Don't remove these as they were active at return-custody date
-    
-recalls_pub[recalls_pub['RESCIND_FLAG_2'] == True][['FILE_REFERENCE', 'STOPPED_REASON_DESCRIPTION','PRISON_NUMBER', 'FAMILY_NAME', 'LICENCE_REVOKE_DATE', 'RTC_DATE', 'RECALL_TYPE_DESCRIPTION','RESCIND_FLAG','UAL_FLAG']] # 3
-
-len(recalls_pub) # 10100, 10401
+recalls_pub[recalls_pub.duplicated(['FILE_REFERENCE','LICENCE_REVOKE_DATE'], keep=False)] # 0
 
     # Check UAL values
 recalls_pub["UAL_FLAG"].value_counts(dropna=False)
@@ -242,14 +241,18 @@ recalls_pub["UAL_FLAG"].value_counts(dropna=False)
     
 recalls_pub[(recalls_pub["RTC_DATE"].isna()) & (recalls_pub["UAL_FLAG"] != True)][['PRISON_NUMBER','LICENCE_REVOKE_DATE', 'RTC_DATE', 'UAL_FLAG', 'RECALL_TYPE_DESCRIPTION']] # 0
 
-    # UAL but have RTC date?
+# UAL is true but have RTC date? Then UAL should be false
 
 recalls_pub[~(recalls_pub["RTC_DATE"].isna()) & (recalls_pub["UAL_FLAG"] == True)][['PRISON_NUMBER','LICENCE_REVOKE_DATE', 'RTC_DATE', 'UAL_FLAG', 'RECALL_TYPE_DESCRIPTION']] # none
 
-# Improper probation area
+recalls_pub.loc[~(recalls_pub["RTC_DATE"].isna()) & (recalls_pub["UAL_FLAG"] == True), 'UAL_FLAG'] = False
+
+# Improper probation area - delete
 recalls_pub[recalls_pub['PROBATION_AREA_DESCRIPTION'].isin(['Scotland','Not Applicable','Northern Ireland','Channel Islands'])] #0
-  
-    # Rename column
+recalls_pub = recalls_pub[~recalls_pub['PROBATION_AREA_DESCRIPTION'].isin(['Scotland','Not Applicable','Northern Ireland','Channel Islands'])]
+
+recalls_pub.shape # 6938
+   # Rename column
 
 recalls_pub.rename(columns = {'CUSTODY_TYPE_AT_TIME_OF_RECALL_DESCRIPTION':'CUSTODY_TYPE_AT_RECALL'}, inplace = True)
 
@@ -259,7 +262,7 @@ recalls_pub['CUSTODY_TYPE_AT_RECALL'].value_counts(dropna=False)
 recalls_pub.loc[recalls_pub['CUSTODY_TYPE_AT_RECALL'].isin(['Not Applicable','Not Specified']), 'CUSTODY_TYPE_AT_RECALL'] = recalls_pub['CUSTODY_TYPE_DESCRIPTION']
 
 # drop some variables
-recalls_pub = recalls_pub.drop(columns=['EXTRAS_FAMILY_NAME','EXTRAS_FIRST_NAME','FR','PN','RESCIND_FLAG_2','STOPPED_REASON_DESCRIPTION','TEMP_LRD'])
+# recalls_pub = recalls_pub.drop(columns=['EXTRAS_FAMILY_NAME','EXTRAS_FIRST_NAME','FR','PN','RESCIND_FLAG_2','STOPPED_REASON_DESCRIPTION','TEMP_LRD'])
 
     # Import Look up tables
 
@@ -331,14 +334,14 @@ query3 = """ SELECT a.*,
                 (a.PROBATION_AREA_DESCRIPTION NOT IN ('Scotland','Not Applicable','Northern Ireland','Channel Islands')) """
   
 recalls_matched = duckdb.sql(query3).df()
-recalls_matched.shape # 10101, 10401, 9975, 9782,7415
+recalls_matched.shape # 7021
 
 recalls_matched.head()
 
-# ------------------------------ Additional variables once matches have been done
-
 recalls_final = recalls_matched.copy()
 
+# ------------------------------ Additional variables once matches have been done
+"""
 recalls_final["RETURN_BY"] = np.where(
     quarter == 4, pd.Timestamp(year+1,3,31), 
     np.where(quarter == 3, pd.Timestamp(year,12,31),
@@ -412,11 +415,10 @@ recalls_final['RECALL_LENGTH'] = np.where(
     "Standard"
 )
 
-"""
 recalls_final.pivot_table(index=['RECALL_TYPE_DESCRIPTION','RECALL_LENGTH'],aggfunc='size')
 
 recalls_final[recalls_final['RECALL_TYPE_DESCRIPTION'].isin(['HDC recall - 255 1 (a) breach of curfew conditions','HDC recall - 255 1 (b) inability to monitor'])][['PRISON_NUMBER','RECALL_TYPE_DESCRIPTION','PART_TOTAL_IN_DAYS']]
-"""
+
 
 recalls_final['RECALL_PROCESS'] = np.where(
     recalls_final['RECALL_STATUS'].astype(str).str.contains("Emergency", case=False, na=False),
@@ -441,7 +443,7 @@ choices_target = ['a. Returned in target', 'b. Returned outside target', 'c. Not
 recalls_final['RECALL_TARGET'] = np.select(conditions_target, choices_target, default='d. Resolved')
 
 recalls_final[recalls_final['RECALL_TARGET'] == 'd. Resolved']
-
+"""
     # Facing Further Charge
 recalls_final['FURTHER_CHARGE'] = np.where(
     recalls_final['RECALL_REASON_DESCRIPTIONS'].astype(str).str.contains("Further", case =False, na=False),100,0
@@ -455,6 +457,9 @@ recalls_final['SUP_BODY'] = np.where(
 # Gender
 recalls_final['GENDER'].value_counts(dropna=False)
 
+recalls_final[recalls_final['GENDER'].isna()][['PRISON_NUMBER','FIRST_NAMES','GENDER']] # 1
+recalls_final.loc[recalls_final['GENDER'].isna(), 'GENDER'] = 'M' # based on manual check   
+                                                                 
 conditions_gender = [
     recalls_final['GENDER'] == 'F ( Was M )',
     recalls_final['GENDER'] == 'M ( Was F )'
@@ -462,11 +467,52 @@ conditions_gender = [
 choices_gender = ['F', 'M']
 recalls_final['GENDER'] = np.select(conditions_gender, choices_gender, default=recalls_final['GENDER'])
 
-# Drop specified columns
-recalls_final = recalls_final.drop(columns=['RESCIND_FLAG', 'MAPPA_LEVEL_DESCRIPTION', 'POLICE_FORCE_DESCRIPTION', 'EWS_NUMBER'])
+# recalls_final = recalls_final.drop(columns=['RESCIND_FLAG', 'MAPPA_LEVEL_DESCRIPTION', 'POLICE_FORCE_DESCRIPTION', 'EWS_NUMBER'])
 
 recalls_final.head()
 
+# Let's count number of recalls per person per
+# check how many missing nomis ids
+recalls_final = recalls_final[recalls_final['CUSTODY_TYPE_DESCRIPTION'].isin(['DPP','IPP'])]
+
+recalls_final['NOMS_ID'].isna().sum() # 15
+recalls_final[recalls_final['NOMS_ID'].isna()]
+
+# If nomis id is missing, set it to filere reference
+recalls_final['NOMS_ID'] = np.where(recalls_final['NOMS_ID'].isna(), recalls_final['FILE_REFERENCE'], recalls_final['NOMS_ID'])
+
+#----------------------- Filter to only those recalls that are after the tariff expiry date or have no tariff expiry date
+sum(recalls_final['LICENCE_REVOKE_DATE'] < recalls_final['TARIFF_EXPIRY_DATE']) # 4
+recalls_final[recalls_final['LICENCE_REVOKE_DATE'] < recalls_final['TARIFF_EXPIRY_DATE']][['NOMS_ID','PRISON_NUMBER','FAMILY_NAME','TARIFF_EXPIRY_DATE','LICENCE_REVOKE_DATE']]
+
+recalls_final = recalls_final[(recalls_final['LICENCE_REVOKE_DATE'] >= recalls_final['TARIFF_EXPIRY_DATE']) | (recalls_final['TARIFF_EXPIRY_DATE'].isna())]
+
+# Tarrif expiry date can't be before date of sentence
+recalls_final = recalls_final[(recalls_final['TARIFF_EXPIRY_DATE'].isna()) | (recalls_final['TARIFF_EXPIRY_DATE'] >= recalls_final['DOS'])]
+len(recalls_final) # 6933
+
+#----------------------- Count number of recalls per person 
+recalls_final = recalls_final.sort_values(by=['NOMS_ID', 'LICENCE_REVOKE_DATE'])
+recalls_final = recalls_final.reset_index(drop=True)
+recalls_final['RECALLNUM'] = recalls_final.groupby('NOMS_ID').cumcount() + 1
+
+# column for maxium number of recalls per person
+recalls_final['MAXRECALLS'] = recalls_final.groupby('NOMS_ID')['RECALLNUM'].transform('max')
+
+# Column to capture next recall date per person
+recalls_final['NEXT_RECALL_DATE'] = recalls_final.groupby('NOMS_ID')['LICENCE_REVOKE_DATE'].shift(-1)
+
+recalls_final.head(50)[['NOMS_ID','PRISON_NUMBER','TARIFF_EXPIRY_DATE','FAMILY_NAME','LICENCE_REVOKE_DATE','NEXT_RECALL_DATE', 'RECALLNUM','MAXRECALLS']]
+
+recalls_final['RECALLNUM'].value_counts(dropna=False)
+
+
 # Save on Amazon to continue
 
-recalls_final.to_parquet(f"s3://alpha-omppg/Recalls/final_data/recalls/all/recalls_final_{year}q{quarter}.parquet",index=False)
+# Convert extension types to native types
+
+recalls_final.to_parquet(f"IPP_recalls_up_to_2025q3.parquet")
+
+recalls_final.to_parquet(f"s3://alpha-omppg/Projects/IPP-case-monitoring-started-in-2025/IPP_recalls_up_to_{year}q{quarter}.parquet")
+
+x =5
